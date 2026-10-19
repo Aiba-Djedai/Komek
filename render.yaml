@@ -1,0 +1,20 @@
+# Demo deployment: the free service uses an ephemeral filesystem.
+# Its SQLite data resets when the instance is recreated or redeployed.
+services:
+  - type: web
+    name: komek-demo
+    runtime: node
+    plan: free
+    branch: feat/volunteer-platform-mvp
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/events
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SEED_DEMO
+        value: "true"
