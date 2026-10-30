@@ -1,12 +1,12 @@
-# Separate demo for the improvements branch; the original MVP service is unchanged.
+# Separate demo for the v2 redesign; previous versions keep their own services.
 # Demo deployment: the free service uses an ephemeral filesystem.
 # Its SQLite data resets when the instance is recreated or redeployed.
 services:
   - type: web
-    name: komek-improvements-demo
+    name: komek-redesign-demo
     runtime: node
     plan: free
-    branch: feat/platform-improvements
+    branch: feat/platform-improvements-v2
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/events
