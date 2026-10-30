@@ -43,7 +43,7 @@ test("complete journey: organization publishes, volunteer applies, organizer dec
   async function signup(page: any, kind: string, email: string, name: string) {
     await page.goto("/");
     await page
-      .getByRole("button", { name: "Присоединиться", exact: true })
+      .getByRole("button", { name: "Регистрация", exact: true })
       .click();
     await page
       .locator(".role-switch")

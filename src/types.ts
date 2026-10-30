@@ -1,0 +1,46 @@
+export type User = {
+  id: number;
+  role: "volunteer" | "organization";
+  name: string;
+  email: string;
+  university: string;
+  contact: string;
+  bio: string;
+};
+export type Event = {
+  id: number;
+  organization_id: number;
+  organization: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  starts_at: string;
+  deadline: string;
+  hours: number;
+  capacity: number;
+  occupied: number;
+  application_count: number;
+  image: string;
+  requirements: string;
+  closed: number;
+};
+export type Application = {
+  id: number;
+  event_id: number;
+  user_id: number;
+  full_name: string;
+  university: string;
+  contact: string;
+  motivation: string;
+  status: string;
+  created_at: string;
+  decision_at: string | null;
+  confirmed_at: string | null;
+  notice_sent_at: string | null;
+  title: string;
+  starts_at: string;
+  location?: string;
+  image?: string;
+  hours?: number;
+};

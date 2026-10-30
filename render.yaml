@@ -1,11 +1,12 @@
+# Separate demo for the improvements branch; the original MVP service is unchanged.
 # Demo deployment: the free service uses an ephemeral filesystem.
 # Its SQLite data resets when the instance is recreated or redeployed.
 services:
   - type: web
-    name: komek-demo
+    name: komek-improvements-demo
     runtime: node
     plan: free
-    branch: feat/volunteer-platform-mvp
+    branch: feat/platform-improvements
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/events

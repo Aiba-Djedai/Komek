@@ -36,53 +36,16 @@ import {
   Bookmark,
 } from "lucide-react";
 import "./styles.css";
+import type { User, Event, Application } from "./types";
+import {
+  date,
+  time,
+  stamp,
+  eventIsOpen as open,
+  eventIsPast as past,
+} from "./lib/events";
+import { OrganizationHome, VolunteerHome } from "./components/Home";
 
-type User = {
-  id: number;
-  role: "volunteer" | "organization";
-  name: string;
-  email: string;
-  university: string;
-  contact: string;
-  bio: string;
-};
-type Event = {
-  id: number;
-  organization_id: number;
-  organization: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string;
-  starts_at: string;
-  deadline: string;
-  hours: number;
-  capacity: number;
-  occupied: number;
-  application_count: number;
-  image: string;
-  requirements: string;
-  closed: number;
-};
-type Application = {
-  id: number;
-  event_id: number;
-  user_id: number;
-  full_name: string;
-  university: string;
-  contact: string;
-  motivation: string;
-  status: string;
-  created_at: string;
-  decision_at: string | null;
-  confirmed_at: string | null;
-  notice_sent_at: string | null;
-  title: string;
-  starts_at: string;
-  location?: string;
-  image?: string;
-  hours?: number;
-};
 type Notice = {
   id: number;
   message: string;
@@ -103,23 +66,6 @@ const STATUSES: Record<string, string> = {
   declined: "Отклонена",
   confirmed: "Участие подтверждено",
 };
-const date = (
-  v: string,
-  opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "long" },
-) =>
-  new Date(v).toLocaleDateString("ru-RU", { ...opts, timeZone: "Asia/Almaty" });
-const time = (v: string) =>
-  new Date(v).toLocaleTimeString("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Almaty",
-  });
-const stamp = (v: string) => `${date(v)} в ${time(v)}`;
-const open = (e: Event) =>
-  !e.closed &&
-  new Date(e.deadline).getTime() > Date.now() &&
-  e.occupied < e.capacity;
-const past = (e: Event) => new Date(e.starts_at).getTime() < Date.now();
 async function api<T = Record<string, unknown>>(
   path: string,
   method = "GET",
@@ -158,6 +104,7 @@ function App() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [privateLoading, setPrivateLoading] = useState(true);
   const [auth, setAuth] = useState<"login" | "register" | null>(null);
   const [authRole, setAuthRole] = useState<"volunteer" | "organization">(
     "volunteer",
@@ -204,8 +151,13 @@ function App() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
-    if (user) loadPrivate().catch((e) => notify(e.message));
-    else {
+    if (user) {
+      setPrivateLoading(true);
+      loadPrivate()
+        .catch((e) => notify(e.message))
+        .finally(() => setPrivateLoading(false));
+    } else {
+      setPrivateLoading(false);
       setApplications([]);
       setNotices([]);
     }
@@ -241,6 +193,10 @@ function App() {
   const afterAuth = (u: User) => {
     setUser(u);
     setAuth(null);
+    setMobileNav(false);
+    setApplications([]);
+    setPrivateLoading(true);
+    if (route === "/" || route === "/projects") navigate("/");
     notify(`Добро пожаловать, ${u.name.split(" ")[0]}!`);
   };
   const action = async (
@@ -265,6 +221,22 @@ function App() {
     setDashTab(user.role === "organization" ? "events" : "applications");
     navigate("/dashboard");
   };
+  const registerAs = (role: User["role"]) => {
+    setAuthRole(role);
+    setMobileNav(false);
+    setAuth("register");
+  };
+  const manageOrganization = (
+    tab: "events" | "applications" | "roster",
+    eventId?: number,
+  ) => {
+    setDashTab(tab);
+    setSelectedEvent(eventId ? String(eventId) : "all");
+    setApplicationStatus("all");
+    navigate("/dashboard");
+  };
+  const findProjects = () =>
+    document.querySelector("#projects")?.scrollIntoView({ behavior: "smooth" });
   const beginApply = (e: Event) => {
     if (!user) {
       setAuthRole("volunteer");
@@ -310,7 +282,7 @@ function App() {
     applications.find((a) => a.event_id === e.id && a.user_id === user?.id);
   return (
     <>
-      <header className="header">
+      <header className={"header" + (user ? " signed-in-header" : "")}>
         <div className="container nav">
           <button
             className="brand"
@@ -333,16 +305,29 @@ function App() {
                 setMobileNav(false);
               }}
             >
-              Найти проект
+              {user?.role === "organization"
+                ? "Главная организации"
+                : "Найти проект"}
             </button>
             <button
-              className={route === "/organizations" ? "active" : ""}
+              className={
+                route ===
+                (user?.role === "organization" ? "/projects" : "/organizations")
+                  ? "active"
+                  : ""
+              }
               onClick={() => {
-                navigate("/organizations");
+                navigate(
+                  user?.role === "organization"
+                    ? "/projects"
+                    : "/organizations",
+                );
                 setMobileNav(false);
               }}
             >
-              Организации
+              {user?.role === "organization"
+                ? "Каталог проектов"
+                : "Организации"}
             </button>
             <button
               className={route === "/about" ? "active" : ""}
@@ -406,9 +391,20 @@ function App() {
                     </div>
                   )}
                 </div>
-                <button className="account-button" onClick={goDashboard}>
+                <button
+                  className={"account-button " + user.role}
+                  aria-label="Мой кабинет"
+                  onClick={goDashboard}
+                >
                   <span className="avatar small">{user.name[0]}</span>
-                  <span>Мой кабинет</span>
+                  <span className="account-copy">
+                    <strong>
+                      {user.role === "organization"
+                        ? "Организация"
+                        : "Волонтёр"}
+                    </strong>
+                    <span>Мой кабинет</span>
+                  </span>
                 </button>
               </>
             ) : (
@@ -420,10 +416,10 @@ function App() {
                   Войти
                 </button>
                 <button
-                  className="button dark small-button"
-                  onClick={() => setAuth("register")}
+                  className="button dark small-button header-registration"
+                  onClick={() => registerAs("volunteer")}
                 >
-                  Присоединиться <ArrowUpRight size={16} />
+                  Регистрация <ArrowUpRight size={16} />
                 </button>
               </>
             )}
@@ -450,134 +446,190 @@ function App() {
         <main className="container loading">
           <LoaderCircle className="spin" /> Загружаем добрые дела…
         </main>
-      ) : route === "/" ? (
+      ) : route === "/" && user?.role === "organization" ? (
+        <OrganizationHome
+          user={user}
+          events={ownedEvents}
+          applications={applications}
+          loading={privateLoading}
+          onCreate={() => setEventForm("new")}
+          onManage={manageOrganization}
+          onEdit={setEventForm}
+          onView={(e) => navigate("/events/" + e.id)}
+          onCatalog={() => navigate("/projects")}
+        />
+      ) : route === "/" || route === "/projects" ? (
         <>
-          <main>
-            <section className="hero container">
-              <div className="hero-copy">
-                <div className="eyebrow">
-                  <span className="live-dot" /> МАЛЕНЬКИЕ ШАГИ. БОЛЬШИЕ
-                  ПЕРЕМЕНЫ.
-                </div>
-                <h1>
-                  Твоя помощь.
-                  <br />
-                  Чья-то <span className="serif">надежда.</span>
-                  <svg className="heading-swish" viewBox="0 0 320 15">
-                    <path d="M3 11Q148-5 314 8" />
-                  </svg>
-                </h1>
-                <p>
-                  Добрые дела ближе, чем кажется. Находи волонтёрские
-                  <br className="desktop-br" /> проекты, помогай и меняй мир
-                  вместе с нами.
-                </p>
-                <div className="hero-actions">
-                  <button
-                    className="button dark"
-                    onClick={() =>
-                      document
-                        .querySelector("#projects")
-                        ?.scrollIntoView({ behavior: "smooth" })
-                    }
-                  >
-                    Найти своё дело <ArrowUpRight size={18} />
-                  </button>
-                  <button
-                    className="hero-secondary"
-                    onClick={() => {
-                      setAuthRole("organization");
-                      if (user?.role === "organization") setEventForm("new");
-                      else setAuth("register");
-                    }}
-                  >
-                    Я представляю организацию <ArrowRight size={17} />
-                  </button>
-                </div>
-                <div className="hero-proof">
-                  <div className="avatar-stack">
-                    <img src="/images/avatar1.jpg" alt="" />
-                    <img src="/images/avatar2.jpg" alt="" />
-                    <img src="/images/avatar3.jpg" alt="" />
-                    <span>
-                      <Heart size={15} />
-                    </span>
-                  </div>
-                  <span>
-                    <strong>Добро начинается с людей</strong>
-                    <small>Стань частью сообщества Алматы</small>
-                  </span>
-                </div>
-              </div>
-              <div className="hero-visual">
-                <img
-                  className="hero-photo"
-                  src="/images/hero.jpg"
-                  alt="Руки участников волонтёрской команды"
+          <main className={user ? "authenticated-catalog" : "guest-home"}>
+            {user ? (
+              user.role === "volunteer" ? (
+                <VolunteerHome
+                  user={user}
+                  applications={applications}
+                  loading={privateLoading}
+                  onFind={findProjects}
+                  onApplications={goDashboard}
+                  onConfirm={(a) =>
+                    action(
+                      `/applications/${a.id}/confirm`,
+                      undefined,
+                      "Участие подтверждено! Вы добавлены в список команды.",
+                    )
+                  }
                 />
-                <div className="hero-photo-shade" />
-                <span className="photo-tag">
-                  <span className="live-dot" /> ВМЕСТЕ МЫ МОЖЕМ БОЛЬШЕ
-                </span>
-                <div className="photo-caption">
-                  <span>
-                    Город один.
-                    <br />
-                    Добрых дел — тысячи.
+              ) : (
+                <section className="container organization-catalog-heading">
+                  <span className="home-role-badge organization-role">
+                    <Building2 size={16} /> Аккаунт организации
                   </span>
-                  <span className="photo-arrow">
-                    <ArrowUpRight size={26} />
-                  </span>
-                </div>
-                <div className="floating-note">
-                  <span className="note-heart">
-                    <Heart size={24} />
-                  </span>
-                  <div>
-                    Неравнодушие —<br />
-                    <strong>это суперсила.</strong>
+                  <h1>Проекты сообщества</h1>
+                  <p>
+                    Знакомьтесь с инициативами других команд и находите
+                    вдохновение для своих событий.
+                  </p>
+                  <button className="text-button" onClick={() => navigate("/")}>
+                    На главную организации <ArrowRight size={16} />
+                  </button>
+                </section>
+              )
+            ) : (
+              <>
+                <section className="hero container">
+                  <div className="hero-copy">
+                    <div className="eyebrow">
+                      <span className="live-dot" /> МАЛЕНЬКИЕ ШАГИ. БОЛЬШИЕ
+                      ПЕРЕМЕНЫ.
+                    </div>
+                    <h1>
+                      Твоя помощь.
+                      <br />
+                      Чья-то <span className="serif">надежда.</span>
+                      <svg className="heading-swish" viewBox="0 0 320 15">
+                        <path d="M3 11Q148-5 314 8" />
+                      </svg>
+                    </h1>
+                    <p>
+                      Добрые дела ближе, чем кажется. Находи волонтёрские
+                      <br className="desktop-br" /> проекты, помогай и меняй мир
+                      вместе с нами.
+                    </p>
+                    <div
+                      className="hero-actions signup-actions"
+                      aria-label="Регистрация по роли"
+                    >
+                      <button
+                        className="signup-action volunteer-signup"
+                        onClick={() => registerAs("volunteer")}
+                      >
+                        <span className="signup-action-icon">
+                          <Heart size={23} />
+                        </span>
+                        <span>
+                          <strong>Найти своё дело</strong>
+                          <span>Зарегистрироваться как волонтёр</span>
+                        </span>
+                        <ArrowUpRight size={22} />
+                      </button>
+                      <button
+                        className="signup-action organization-signup"
+                        onClick={() => registerAs("organization")}
+                      >
+                        <span className="signup-action-icon">
+                          <Building2 size={23} />
+                        </span>
+                        <span>
+                          <strong>Я представляю организацию</strong>
+                          <span>Создать аккаунт и собрать команду</span>
+                        </span>
+                        <ArrowUpRight size={22} />
+                      </button>
+                    </div>
+                    <div className="hero-proof">
+                      <div className="avatar-stack">
+                        <img src="/images/avatar1.jpg" alt="" />
+                        <img src="/images/avatar2.jpg" alt="" />
+                        <img src="/images/avatar3.jpg" alt="" />
+                        <span>
+                          <Heart size={15} />
+                        </span>
+                      </div>
+                      <span>
+                        <strong>Добро начинается с людей</strong>
+                        <small>Стань частью сообщества Алматы</small>
+                      </span>
+                    </div>
                   </div>
-                  <svg viewBox="0 0 45 45">
-                    <path d="M5 30Q25 35 27 8M17 15L28 6 35 17" />
-                  </svg>
-                </div>
-                <span className="visual-spark">✳</span>
-              </div>
-            </section>
-            <section className="impact container">
-              <div className="impact-intro">
-                <span className="impact-icon">
-                  <Leaf size={25} />
-                </span>
-                <p>
-                  Хорошие изменения
-                  <br />
-                  <strong>начинаются с нас</strong>
-                </p>
-              </div>
-              <div>
-                <strong>
-                  {events.filter(open).length}
-                  <span>↗</span>
-                </strong>
-                <p>открытых проектов</p>
-              </div>
-              <div>
-                <strong>5</strong>
-                <p>направлений помощи</p>
-              </div>
-              <div>
-                <strong>
-                  Алматы<span className="tiny-heart">♡</span>
-                </strong>
-                <p>город, который объединяет</p>
-              </div>
-              <div className="impact-last">
-                <span>Каждый вклад важен.</span>
-                <strong>Твой тоже.</strong>
-                <ArrowUpRight size={24} />
-              </div>
-            </section>
+                  <div className="hero-visual">
+                    <img
+                      className="hero-photo"
+                      src="/images/hero.jpg"
+                      alt="Руки участников волонтёрской команды"
+                    />
+                    <div className="hero-photo-shade" />
+                    <span className="photo-tag">
+                      <span className="live-dot" /> ВМЕСТЕ МЫ МОЖЕМ БОЛЬШЕ
+                    </span>
+                    <div className="photo-caption">
+                      <span>
+                        Город один.
+                        <br />
+                        Добрых дел — тысячи.
+                      </span>
+                      <span className="photo-arrow">
+                        <ArrowUpRight size={26} />
+                      </span>
+                    </div>
+                    <div className="floating-note">
+                      <span className="note-heart">
+                        <Heart size={24} />
+                      </span>
+                      <div>
+                        Неравнодушие —<br />
+                        <strong>это суперсила.</strong>
+                      </div>
+                      <svg viewBox="0 0 45 45">
+                        <path d="M5 30Q25 35 27 8M17 15L28 6 35 17" />
+                      </svg>
+                    </div>
+                    <span className="visual-spark">✳</span>
+                  </div>
+                </section>
+                <section className="impact container">
+                  <div className="impact-intro">
+                    <span className="impact-icon">
+                      <Leaf size={25} />
+                    </span>
+                    <p>
+                      Хорошие изменения
+                      <br />
+                      <strong>начинаются с нас</strong>
+                    </p>
+                  </div>
+                  <div>
+                    <strong>
+                      {events.filter(open).length}
+                      <span>↗</span>
+                    </strong>
+                    <p>открытых проектов</p>
+                  </div>
+                  <div>
+                    <strong>5</strong>
+                    <p>направлений помощи</p>
+                  </div>
+                  <div>
+                    <strong>
+                      Алматы<span className="tiny-heart">♡</span>
+                    </strong>
+                    <p>город, который объединяет</p>
+                  </div>
+                  <div className="impact-last">
+                    <span>Каждый вклад важен.</span>
+                    <strong>Твой тоже.</strong>
+                    <ArrowUpRight size={24} />
+                  </div>
+                </section>
+              </>
+            )}
             <section id="projects" className="projects container">
               <div className="section-heading">
                 <div>
@@ -701,31 +753,62 @@ function App() {
                 <Heart size={17} />
               </div>
             </section>
-            <section className="organization-cta container">
-              <div className="cta-drawing">
-                <Users size={48} />
-                <span>✳</span>
-              </div>
-              <div>
-                <span className="eyebrow">ДЕЛАТЬ ДОБРО ЛЕГЧЕ ВМЕСТЕ</span>
-                <h2>Ищете людей, которым не всё равно?</h2>
-                <p>
-                  Расскажите о своём проекте. Мы поможем собрать вашу команду.
-                </p>
-              </div>
-              <button
-                className="button dark"
-                onClick={() => {
-                  if (user?.role === "organization") setEventForm("new");
-                  else {
-                    setAuthRole("organization");
-                    setAuth("register");
-                  }
-                }}
-              >
-                Создать проект <Plus size={18} />
-              </button>
-            </section>
+            {!user ? (
+              <>
+                <section className="organization-cta container">
+                  <div className="cta-drawing">
+                    <Users size={48} />
+                    <span>✳</span>
+                  </div>
+                  <div>
+                    <span className="eyebrow">ДЕЛАТЬ ДОБРО ЛЕГЧЕ ВМЕСТЕ</span>
+                    <h2>Ищете людей, которым не всё равно?</h2>
+                    <p>
+                      Расскажите о своём проекте. Мы поможем собрать вашу
+                      команду.
+                    </p>
+                  </div>
+                  <button
+                    className="button dark"
+                    onClick={() => {
+                      registerAs("organization");
+                    }}
+                  >
+                    Создать проект <Plus size={18} />
+                  </button>
+                </section>
+              </>
+            ) : user.role === "volunteer" ? (
+              <section className="container volunteer-bottom-cta">
+                <Heart size={30} />
+                <div>
+                  <h2>Твоя история добрых дел уже началась</h2>
+                  <p>
+                    Следи за ответами организаторов и подтверждай участие в
+                    своём кабинете.
+                  </p>
+                </div>
+                <button className="button dark" onClick={goDashboard}>
+                  Мои заявки <ArrowRight size={17} />
+                </button>
+              </section>
+            ) : (
+              <section className="container volunteer-bottom-cta">
+                <Building2 size={30} />
+                <div>
+                  <h2>Готовы к следующему проекту?</h2>
+                  <p>
+                    Создайте событие и пригласите волонтёров в свою команду.
+                  </p>
+                </div>
+                <button
+                  className="button dark"
+                  onClick={() => setEventForm("new")}
+                >
+                  Создать проект <Plus size={17} />
+                </button>
+              </section>
+            )}
           </main>
         </>
       ) : route.startsWith("/events/") ? (
@@ -1373,7 +1456,7 @@ function App() {
                     setSearch(e.organization);
                     setPeriod("active");
                     setCategory("all");
-                    navigate("/");
+                    navigate(user?.role === "organization" ? "/projects" : "/");
                     setTimeout(
                       () =>
                         document.querySelector("#projects")?.scrollIntoView(),
@@ -1443,13 +1526,15 @@ function App() {
             <button
               className="button dark"
               onClick={() => {
-                setAuthRole("organization");
-                user?.role === "organization"
-                  ? setEventForm("new")
-                  : setAuth("register");
+                if (user?.role === "organization") setEventForm("new");
+                else if (user?.role === "volunteer") navigate("/organizations");
+                else registerAs("organization");
               }}
             >
-              Собрать команду <ArrowUpRight size={17} />
+              {user?.role === "volunteer"
+                ? "Посмотреть организации"
+                : "Собрать команду"}{" "}
+              <ArrowUpRight size={17} />
             </button>
           </div>
         </main>
@@ -1480,7 +1565,13 @@ function App() {
             </p>
           </div>
           <div className="footer-links">
-            <button onClick={() => navigate("/")}>Найти проект</button>
+            <button
+              onClick={() =>
+                navigate(user?.role === "organization" ? "/projects" : "/")
+              }
+            >
+              Найти проект
+            </button>
             <button onClick={() => navigate("/organizations")}>
               Организации
             </button>
