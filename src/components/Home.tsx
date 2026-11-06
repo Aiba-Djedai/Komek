@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 import "./Home.css";
 import {
   ArrowRight,
@@ -69,27 +70,32 @@ export function OrganizationHome({
       >
         <div className="organization-welcome-copy">
           <span className="home-role-badge organization-role">
-            <Building2 size={16} /> Аккаунт организации
+            <Building2 size={16} /> {t(" Аккаунт организации")}
           </span>
-          <p className="home-identity">Ваша команда · {user.name}</p>
+          <p className="home-identity">
+            {t("Ваша команда · ")}
+            {user.name}
+          </p>
           <h1 id="organization-home-title">
-            Добрые проекты.
+            {t("Добрые проекты.")}
             <br />
-            <span>Сильная команда.</span>
+            <span>{t("Сильная команда.")}</span>
           </h1>
           <p>
-            Создавайте события, находите волонтёров и собирайте команду. Здесь
-            всё готово для вашего следующего доброго дела.
+            {t(
+              "Создавайте события, находите волонтёров и собирайте команду. Здесь всё готово для вашего следующего доброго дела.",
+            )}
           </p>
           <div className="role-home-actions">
             <button className="button dark" onClick={onCreate}>
-              <Plus size={20} /> Создать проект
+              <Plus size={20} /> {t(" Создать проект")}
             </button>
             <button
               className="button outline"
               onClick={() => onManage("applications")}
             >
-              Заявки участников <ArrowUpRight size={18} />
+              {t("Заявки участников ")}
+              <ArrowUpRight size={18} />
             </button>
           </div>
         </div>
@@ -98,58 +104,65 @@ export function OrganizationHome({
             <Users size={30} />
             <span>✳</span>
           </div>
-          <span className="eyebrow">ВАШ СЛЕДУЮЩИЙ ШАГ</span>
+          <span className="eyebrow">{t("ВАШ СЛЕДУЮЩИЙ ШАГ")}</span>
           {loading ? (
             <p className="home-loading">
-              <LoaderCircle className="spin" size={19} /> Загружаем заявки…
+              <LoaderCircle className="spin" size={19} />{" "}
+              {t(" Загружаем заявки…")}
             </p>
           ) : pending.length ? (
             <>
               <h2>
-                Кто-то уже готов
+                {t("Кто-то уже готов")}
                 <br />
-                помочь вашему проекту.
+                {t("помочь вашему проекту.")}
               </h2>
               <p>
-                Заявок на рассмотрении: {pending.length}. Ответьте волонтёрам и
-                начните собирать команду.
+                {t("Заявок на рассмотрении: ")}
+                {pending.length}
+                {t(". Ответьте волонтёрам и начните собирать команду.")}
               </p>
               <button onClick={() => onManage("applications")}>
-                Рассмотреть заявки <ArrowRight size={18} />
+                {t("Рассмотреть заявки ")}
+                <ArrowRight size={18} />
               </button>
             </>
           ) : (
             <>
               <h2>
-                Большие перемены
+                {t("Большие перемены")}
                 <br />
-                начинаются с идеи.
+                {t("начинаются с идеи.")}
               </h2>
               <p>
                 {events.length
-                  ? "Поделитесь ссылкой на ваш проект — новые заявки появятся здесь."
-                  : "Опубликуйте первое событие и расскажите, какая помощь вам нужна."}
+                  ? t(
+                      "Поделитесь ссылкой на ваш проект — новые заявки появятся здесь.",
+                    )
+                  : t(
+                      "Опубликуйте первое событие и расскажите, какая помощь вам нужна.",
+                    )}
               </p>
               <button
                 onClick={events.length ? () => onManage("events") : onCreate}
               >
                 {events.length
-                  ? "Открыть мои проекты"
-                  : "Создать первый проект"}{" "}
+                  ? t("Открыть мои проекты")
+                  : t("Создать первый проект")}{" "}
                 <ArrowRight size={18} />
               </button>
             </>
           )}
         </div>
       </section>
-      <section className="home-stats" aria-label="Показатели организации">
+      <section className="home-stats" aria-label={t("Показатели организации")}>
         <button onClick={() => onManage("events")}>
           <span className="home-stat-icon">
             <CalendarDays size={22} />
           </span>
           <span>
             <strong>{loading ? "…" : events.filter(eventIsOpen).length}</strong>
-            <span>Открытых проектов</span>
+            <span>{t("Открытых проектов")}</span>
           </span>
           <ArrowUpRight size={19} />
         </button>
@@ -159,7 +172,7 @@ export function OrganizationHome({
           </span>
           <span>
             <strong>{loading ? "…" : pending.length}</strong>
-            <span>Заявок на рассмотрении</span>
+            <span>{t("Заявок на рассмотрении")}</span>
           </span>
           <ArrowUpRight size={19} />
         </button>
@@ -169,7 +182,7 @@ export function OrganizationHome({
           </span>
           <span>
             <strong>{loading ? "…" : confirmed.length}</strong>
-            <span>Подтвердили участие</span>
+            <span>{t("Подтвердили участие")}</span>
           </span>
           <ArrowUpRight size={19} />
         </button>
@@ -181,13 +194,15 @@ export function OrganizationHome({
         >
           <div className="home-section-heading">
             <div>
-              <span className="eyebrow">ПРОЕКТЫ ВАШЕЙ ОРГАНИЗАЦИИ</span>
+              <span className="eyebrow">{t("ПРОЕКТЫ ВАШЕЙ ОРГАНИЗАЦИИ")}</span>
               <h2 id="home-projects-title">
-                Мои проекты <span>{events.length}</span>
+                {t("Мои проекты ")}
+                <span>{events.length}</span>
               </h2>
             </div>
             <button onClick={() => onManage("events")}>
-              Все проекты <ArrowUpRight size={16} />
+              {t("Все проекты ")}
+              <ArrowUpRight size={16} />
             </button>
           </div>
           {loading ? (
@@ -204,10 +219,10 @@ export function OrganizationHome({
                       }
                     >
                       {eventIsPast(e)
-                        ? "Завершён"
+                        ? t("Завершён")
                         : eventIsOpen(e)
-                          ? "Набор открыт"
-                          : "Набор закрыт"}
+                          ? t("Набор открыт")
+                          : t("Набор закрыт")}
                     </span>
                     <button
                       className="home-project-title"
@@ -220,14 +235,19 @@ export function OrganizationHome({
                       {stamp(e.starts_at)}
                     </p>
                     <small>
-                      Заявки: {e.application_count} · Занято мест: {e.occupied}{" "}
-                      из {e.capacity}
+                      {t("Заявки: ")}
+                      {e.application_count} {t(" · Занято мест: ")}
+                      {e.occupied} {t("из ")}
+                      {e.capacity}
                     </small>
                     <div className="home-project-actions">
                       <button onClick={() => onManage("applications", e.id)}>
-                        Посмотреть заявки <ArrowRight size={14} />
+                        {t("Посмотреть заявки ")}
+                        <ArrowRight size={14} />
                       </button>
-                      <button onClick={() => onEdit(e)}>Редактировать</button>
+                      <button onClick={() => onEdit(e)}>
+                        {t("Редактировать")}
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -236,13 +256,15 @@ export function OrganizationHome({
           ) : (
             <div className="home-empty">
               <CalendarDays size={30} />
-              <h3>Здесь появится ваш первый проект</h3>
+              <h3>{t("Здесь появится ваш первый проект")}</h3>
               <p>
-                Укажите дату, место и задачи для волонтёров. После публикации
-                можно сразу принимать заявки.
+                {t(
+                  "Укажите дату, место и задачи для волонтёров. После публикации можно сразу принимать заявки.",
+                )}
               </p>
               <button className="button dark" onClick={onCreate}>
-                Создать первый проект <Plus size={17} />
+                {t("Создать первый проект ")}
+                <Plus size={17} />
               </button>
             </div>
           )}
@@ -253,8 +275,8 @@ export function OrganizationHome({
         >
           <div className="home-section-heading">
             <div>
-              <span className="eyebrow">ЛЮДИ, КОТОРЫМ НЕ ВСЁ РАВНО</span>
-              <h2 id="home-applications-title">Последние заявки</h2>
+              <span className="eyebrow">{t("ЛЮДИ, КОТОРЫМ НЕ ВСЁ РАВНО")}</span>
+              <h2 id="home-applications-title">{t("Последние заявки")}</h2>
             </div>
           </div>
           {loading ? (
@@ -274,12 +296,12 @@ export function OrganizationHome({
                       <span>{a.title}</span>
                       <small>
                         {a.status === "pending"
-                          ? "Ожидает вашего решения"
+                          ? t("Ожидает вашего решения")
                           : a.status === "confirmed"
-                            ? "Участие подтверждено"
+                            ? t("Участие подтверждено")
                             : a.status === "accepted"
-                              ? "Ждём подтверждения участника"
-                              : "Заявка отклонена"}
+                              ? t("Ждём подтверждения участника")
+                              : t("Заявка отклонена")}
                       </small>
                     </span>
                     <ArrowUpRight size={16} />
@@ -290,24 +312,27 @@ export function OrganizationHome({
                 className="button outline full"
                 onClick={() => onManage("applications")}
               >
-                Открыть все заявки <ArrowRight size={16} />
+                {t("Открыть все заявки ")}
+                <ArrowRight size={16} />
               </button>
             </>
           ) : (
             <div className="home-empty compact">
               <Send size={28} />
-              <h3>Будущая команда уже рядом</h3>
+              <h3>{t("Будущая команда уже рядом")}</h3>
               <p>
-                Как только волонтёры откликнутся на проект, их заявки появятся
-                здесь.
+                {t(
+                  "Как только волонтёры откликнутся на проект, их заявки появятся здесь.",
+                )}
               </p>
             </div>
           )}
           <div className="home-organizer-tip">
             <CircleCheck size={20} />
             <p>
-              После одобрения дождитесь подтверждения волонтёра. Только затем он
-              появится в итоговом составе.
+              {t(
+                "После одобрения дождитесь подтверждения волонтёра. Только затем он появится в итоговом составе.",
+              )}
             </p>
           </div>
         </section>
@@ -316,12 +341,17 @@ export function OrganizationHome({
         <div>
           <Leaf size={23} />
           <div>
-            <h2>Вдохновляйтесь добрыми инициативами</h2>
-            <p>Посмотрите, какие проекты проводят другие организации Алматы.</p>
+            <h2>{t("Вдохновляйтесь добрыми инициативами")}</h2>
+            <p>
+              {t(
+                "Посмотрите, какие проекты проводят другие организации Алматы.",
+              )}
+            </p>
           </div>
         </div>
         <button className="button outline" onClick={onCatalog}>
-          Каталог проектов <ArrowUpRight size={17} />
+          {t("Каталог проектов ")}
+          <ArrowUpRight size={17} />
         </button>
       </section>
     </main>
@@ -362,28 +392,32 @@ export function VolunteerHome({
       >
         <div className="volunteer-welcome-copy">
           <span className="home-role-badge volunteer-role">
-            <Heart size={16} /> Аккаунт волонтёра
+            <Heart size={16} /> {t(" Аккаунт волонтёра")}
           </span>
           <h1 id="volunteer-home-title">
-            Привет, {user.name.split(" ")[0]}!<br />
-            <span>Твоё добро ждут.</span>
+            {t("Привет, ")}
+            {user.name.split(" ")[0]}!<br />
+            <span>{t("Твоё добро ждут.")}</span>
           </h1>
           <p>
-            Выбирай проекты по душе, следи за заявками и помогай вместе с
-            людьми, которым не всё равно.
+            {t(
+              "Выбирай проекты по душе, следи за заявками и помогай вместе с людьми, которым не всё равно.",
+            )}
           </p>
           <div className="role-home-actions">
             <button className="button dark" onClick={onFind}>
-              Найти проект <ArrowUpRight size={18} />
+              {t("Найти проект ")}
+              <ArrowUpRight size={18} />
             </button>
             <button className="button outline" onClick={onApplications}>
-              Мои заявки <ArrowUpRight size={18} />
+              {t("Мои заявки ")}
+              <ArrowUpRight size={18} />
             </button>
           </div>
         </div>
         <aside className="volunteer-next-step">
           <span className="eyebrow">
-            {upcoming ? "ТВОЁ БЛИЖАЙШЕЕ ДОБРОЕ ДЕЛО" : "ТВОЙ ПЕРВЫЙ ШАГ"}
+            {upcoming ? t("ТВОЁ БЛИЖАЙШЕЕ ДОБРОЕ ДЕЛО") : t("ТВОЙ ПЕРВЫЙ ШАГ")}
           </span>
           {loading ? (
             <HomeLoading />
@@ -391,8 +425,8 @@ export function VolunteerHome({
             <>
               <span className={"status " + upcoming.status}>
                 {upcoming.status === "accepted"
-                  ? "Нужно подтвердить участие"
-                  : "Ты в команде!"}
+                  ? t("Нужно подтвердить участие")
+                  : t("Ты в команде!")}
               </span>
               <h2>{upcoming.title}</h2>
               <p>
@@ -414,8 +448,8 @@ export function VolunteerHome({
                 }
               >
                 {upcoming.status === "accepted"
-                  ? "Подтвердить участие"
-                  : "Открыть мою заявку"}{" "}
+                  ? t("Подтвердить участие")
+                  : t("Открыть мою заявку")}{" "}
                 <ArrowRight size={17} />
               </button>
             </>
@@ -426,16 +460,18 @@ export function VolunteerHome({
                 <span>✳</span>
               </span>
               <h2>
-                Немного твоего времени.
+                {t("Немного твоего времени.")}
                 <br />
-                Много добрых перемен.
+                {t("Много добрых перемен.")}
               </h2>
               <p>
-                Для первого шага не нужен опыт. Найди интересный проект и
-                расскажи организатору о себе.
+                {t(
+                  "Для первого шага не нужен опыт. Найди интересный проект и расскажи организатору о себе.",
+                )}
               </p>
               <button onClick={onFind} className="volunteer-explore-link">
-                Выбрать проект <ArrowRight size={17} />
+                {t("Выбрать проект ")}
+                <ArrowRight size={17} />
               </button>
             </>
           )}
@@ -443,7 +479,7 @@ export function VolunteerHome({
       </section>
       <section
         className="home-stats volunteer-home-stats"
-        aria-label="Мои участия"
+        aria-label={t("Мои участия")}
       >
         <button onClick={onApplications}>
           <span className="home-stat-icon">
@@ -451,7 +487,7 @@ export function VolunteerHome({
           </span>
           <span>
             <strong>{loading ? "…" : applications.length}</strong>
-            <span>Мои заявки</span>
+            <span>{t("Мои заявки")}</span>
           </span>
           <ArrowUpRight size={19} />
         </button>
@@ -465,7 +501,7 @@ export function VolunteerHome({
                 ? "…"
                 : applications.filter((a) => a.status === "pending").length}
             </strong>
-            <span>На рассмотрении</span>
+            <span>{t("На рассмотрении")}</span>
           </span>
           <ArrowUpRight size={19} />
         </button>
@@ -479,7 +515,7 @@ export function VolunteerHome({
                 ? "…"
                 : applications.filter((a) => a.status === "confirmed").length}
             </strong>
-            <span>Участие подтверждено</span>
+            <span>{t("Участие подтверждено")}</span>
           </span>
           <ArrowUpRight size={19} />
         </button>
@@ -490,7 +526,7 @@ export function VolunteerHome({
 function HomeLoading() {
   return (
     <p className="home-loading">
-      <LoaderCircle className="spin" size={19} /> Загружаем…
+      <LoaderCircle className="spin" size={19} /> {t(" Загружаем…")}
     </p>
   );
 }

@@ -1,6 +1,12 @@
 import express from "express";
 import { randomBytes, createHash } from "node:crypto";
 import { hashPassword, verifyPassword } from "./db.js";
+import {
+  isLanguage,
+  requestLanguage,
+  translate,
+  translateNotification,
+} from "../shared/translate.ts";
 const categories = ["eco", "social", "animals", "events", "education"];
 const publicUser = ({ password, ...u }) => u;
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -8,6 +14,22 @@ const iso = () => new Date().toISOString();
 export function createApp(db) {
   const app = express();
   app.disable("x-powered-by");
+  app.use((req, res, next) => {
+    req.language = requestLanguage(req.headers["accept-language"]);
+    res.vary("Accept-Language");
+    const json = res.json.bind(res);
+    res.json = (body) =>
+      json(
+        body && typeof body.error === "string"
+          ? {
+              ...body,
+              source_error: body.error,
+              error: translate(req.language, body.error),
+            }
+          : body,
+      );
+    next();
+  });
   app.use(express.json({ limit: "100kb" }));
   app.use((req, res, next) => {
     res.set("X-Content-Type-Options", "nosniff");
@@ -347,13 +369,11 @@ export function createApp(db) {
             iso(),
           ).lastInsertRowid,
       );
-      res
-        .status(201)
-        .json({
-          application: db
-            .prepare("SELECT * FROM applications WHERE id=?")
-            .get(id),
-        });
+      res.status(201).json({
+        application: db
+          .prepare("SELECT * FROM applications WHERE id=?")
+          .get(id),
+      });
     },
   );
   app.get("/api/dashboard", auth, (req, res) => {
@@ -478,6 +498,9 @@ export function createApp(db) {
       )
       .all(e.id);
     if (req.query.format === "csv") {
+      const language = isLanguage(req.query.lang)
+        ? req.query.lang
+        : req.language;
       const cell = (v) =>
         '"' +
         String(v ?? "")
@@ -492,7 +515,9 @@ export function createApp(db) {
       return res.send(
         "\uFEFF" +
           [
-            ["Имя", "Контакт", "Университет", "Подтверждение"],
+            ["Имя", "Контакт", "Университет", "Подтверждение"].map((label) =>
+              translate(language, label),
+            ),
             ...rows.map((r) => Object.values(r)),
           ]
             .map((r) => r.map(cell).join(","))
@@ -507,7 +532,12 @@ export function createApp(db) {
         .prepare(
           "SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC",
         )
-        .all(req.user.id),
+        .all(req.user.id)
+        .map((notice) => ({
+          ...notice,
+          source_message: notice.message,
+          message: translateNotification(req.language, notice.message),
+        })),
     }),
   );
   app.post("/api/notifications/read", auth, (req, res) => {
@@ -521,13 +551,11 @@ export function createApp(db) {
   );
   app.use((err, req, res, next) => {
     if (!err.status) console.error(err);
-    res
-      .status(err.status || 500)
-      .json({
-        error: err.status
-          ? err.message
-          : "Не удалось выполнить запрос. Попробуйте ещё раз.",
-      });
+    res.status(err.status || 500).json({
+      error: err.status
+        ? err.message
+        : "Не удалось выполнить запрос. Попробуйте ещё раз.",
+    });
   });
   return app;
 }

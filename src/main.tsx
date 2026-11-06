@@ -1,3 +1,5 @@
+import { getLanguage, notificationText, t, useLanguage } from "./lib/i18n";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -47,39 +49,51 @@ import {
 import { OrganizationHome, VolunteerHome } from "./components/Home";
 import { MyProjects } from "./components/MyProjects";
 import { groupParticipations } from "./lib/participation";
+import "./components/LanguageSwitcher.css";
 
 type Notice = {
   id: number;
   message: string;
   created_at: string;
   read_at: string | null;
+  source_message?: string;
 };
-const CATEGORIES = [
-  { id: "all", label: "Все направления", icon: Sparkles },
-  { id: "eco", label: "Экология", icon: Leaf },
-  { id: "social", label: "Социальная помощь", icon: Heart },
-  { id: "animals", label: "Помощь животным", icon: PawPrint },
-  { id: "events", label: "События", icon: Users },
-  { id: "education", label: "Образование", icon: GraduationCap },
+const getCategories = () => [
+  { id: "all", label: t("Все направления"), icon: Sparkles },
+  { id: "eco", label: t("Экология"), icon: Leaf },
+  { id: "social", label: t("Социальная помощь"), icon: Heart },
+  { id: "animals", label: t("Помощь животным"), icon: PawPrint },
+  { id: "events", label: t("События"), icon: Users },
+  { id: "education", label: t("Образование"), icon: GraduationCap },
 ];
-const STATUSES: Record<string, string> = {
-  pending: "На рассмотрении",
-  accepted: "Ожидает подтверждения",
-  declined: "Отклонена",
-  confirmed: "Участие подтверждено",
-};
+const getStatuses = (): Record<string, string> => ({
+  pending: t("На рассмотрении"),
+  accepted: t("Ожидает подтверждения"),
+  declined: t("Отклонена"),
+  confirmed: t("Участие подтверждено"),
+});
 async function api<T = Record<string, unknown>>(
   path: string,
   method = "GET",
   body?: unknown,
 ): Promise<T> {
-  const r = await fetch("/api" + path, {
-    method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await r.json();
-  if (!r.ok) throw Error(data.error || "Ошибка соединения.");
+  let r: Response;
+  let data;
+  try {
+    r = await fetch("/api" + path, {
+      method,
+      headers: {
+        "Accept-Language": getLanguage(),
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    data = await r.json();
+  } catch {
+    throw Error("Ошибка соединения.");
+  }
+  if (!r.ok)
+    throw Error(data.source_error || data.error || "Ошибка соединения.");
   return data;
 }
 function useRoute() {
@@ -99,6 +113,7 @@ function useRoute() {
   ] as const;
 }
 function App() {
+  const language = useLanguage();
   const [route, navigate] = useRoute();
   const [user, setUser] = useState<User | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
@@ -115,7 +130,10 @@ function App() {
   const [applyEvent, setApplyEvent] = useState<Event | null>(null);
   const [profile, setProfile] = useState(false);
   const [info, setInfo] = useState<"privacy" | "terms" | null>(null);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<{
+    source: string;
+    params?: readonly unknown[];
+  } | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [category, setCategory] = useState("all");
@@ -133,7 +151,8 @@ function App() {
       return [];
     }
   });
-  const notify = (message: string) => setToast(message);
+  const notify = (source: string, params?: readonly unknown[]) =>
+    setToast({ source, params });
   async function reload() {
     const { events } = await api<{ events: Event[] }>("/events");
     setEvents(events);
@@ -181,7 +200,7 @@ function App() {
   }, [user?.id]);
   useEffect(() => {
     if (toast) {
-      const id = setTimeout(() => setToast(""), 5000);
+      const id = setTimeout(() => setToast(null), 5000);
       return () => clearTimeout(id);
     }
   }, [toast]);
@@ -199,7 +218,7 @@ function App() {
     setApplications([]);
     setPrivateLoading(true);
     if (route === "/" || route === "/projects") navigate("/");
-    notify(`Добро пожаловать, ${u.name.split(" ")[0]}!`);
+    notify("Добро пожаловать, {0}!", [u.name.split(" ")[0]]);
   };
   const action = async (
     path: string,
@@ -289,7 +308,7 @@ function App() {
           <button
             className="brand"
             onClick={() => navigate("/")}
-            aria-label="Kömek — главная"
+            aria-label={t("Kömek — главная")}
           >
             <span className="brand-mark">
               <Heart size={22} fill="currentColor" />
@@ -298,7 +317,7 @@ function App() {
           </button>
           <nav
             className={mobileNav ? "nav-links visible" : "nav-links"}
-            aria-label="Основная навигация"
+            aria-label={t("Основная навигация")}
           >
             <button
               className={route === "/" ? "active" : ""}
@@ -308,8 +327,8 @@ function App() {
               }}
             >
               {user?.role === "organization"
-                ? "Главная организации"
-                : "Найти проект"}
+                ? t("Главная организации")
+                : t("Найти проект")}
             </button>
             {user?.role === "volunteer" && (
               <button
@@ -320,7 +339,7 @@ function App() {
                   setMobileNav(false);
                 }}
               >
-                Мои проекты
+                {t("Мои проекты")}
               </button>
             )}
             <button
@@ -340,8 +359,8 @@ function App() {
               }}
             >
               {user?.role === "organization"
-                ? "Каталог проектов"
-                : "Организации"}
+                ? t("Каталог проектов")
+                : t("Организации")}
             </button>
             <button
               className={route === "/about" ? "active" : ""}
@@ -350,19 +369,32 @@ function App() {
                 setMobileNav(false);
               }}
             >
-              Как это работает <ArrowUpRight size={14} />
+              {t("Как это работает ")}
+              <ArrowUpRight size={14} />
             </button>
+            {!user && (
+              <button
+                className="mobile-nav-login"
+                onClick={() => {
+                  setMobileNav(false);
+                  setAuth("login");
+                }}
+              >
+                {t("Войти")}
+              </button>
+            )}
           </nav>
           <div className="nav-right">
+            <LanguageSwitcher />
             <span className="city">
-              <MapPin size={15} /> Алматы
+              <MapPin size={15} /> {t(" Алматы")}
             </span>
             {user ? (
               <>
                 <div className="notice-wrap">
                   <button
                     className="icon-button"
-                    aria-label="Уведомления"
+                    aria-label={t("Уведомления")}
                     onClick={() => {
                       setNotificationsOpen(!notificationsOpen);
                       if (!notificationsOpen && unread)
@@ -384,7 +416,8 @@ function App() {
                   {notificationsOpen && (
                     <div className="notice-pop">
                       <h3>
-                        Уведомления <span>{notices.length}</span>
+                        {t("Уведомления ")}
+                        <span>{notices.length}</span>
                       </h3>
                       {notices.length ? (
                         notices.map((n) => (
@@ -395,29 +428,31 @@ function App() {
                               goDashboard();
                             }}
                           >
-                            <span>{n.message}</span>
+                            <span>
+                              {notificationText(n.source_message || n.message)}
+                            </span>
                             <small>{stamp(n.created_at)}</small>
                           </button>
                         ))
                       ) : (
-                        <p>Здесь появятся решения по вашим заявкам.</p>
+                        <p>{t("Здесь появятся решения по вашим заявкам.")}</p>
                       )}
                     </div>
                   )}
                 </div>
                 <button
                   className={"account-button " + user.role}
-                  aria-label="Мой кабинет"
+                  aria-label={t("Мой кабинет")}
                   onClick={goDashboard}
                 >
                   <span className="avatar small">{user.name[0]}</span>
                   <span className="account-copy">
                     <strong>
                       {user.role === "organization"
-                        ? "Организация"
-                        : "Волонтёр"}
+                        ? t("Организация")
+                        : t("Волонтёр")}
                     </strong>
-                    <span>Мой кабинет</span>
+                    <span>{t("Мой кабинет")}</span>
                   </span>
                 </button>
               </>
@@ -427,20 +462,21 @@ function App() {
                   className="text-button login-btn"
                   onClick={() => setAuth("login")}
                 >
-                  Войти
+                  {t("Войти")}
                 </button>
                 <button
                   className="button dark small-button header-registration"
                   onClick={() => registerAs("volunteer")}
                 >
-                  Регистрация <ArrowUpRight size={16} />
+                  {t("Регистрация ")}
+                  <ArrowUpRight size={16} />
                 </button>
               </>
             )}
             <button
               className="mobile-menu icon-button"
               onClick={() => setMobileNav(!mobileNav)}
-              aria-label="Меню"
+              aria-label={t("Меню")}
             >
               <Menu />
             </button>
@@ -450,15 +486,15 @@ function App() {
       {loadError ? (
         <main className="container empty-page">
           <CircleAlert size={40} />
-          <h1>Не удалось загрузить проекты</h1>
-          <p>{loadError}</p>
+          <h1>{t("Не удалось загрузить проекты")}</h1>
+          <p>{t(loadError)}</p>
           <button className="button dark" onClick={() => location.reload()}>
-            Попробовать снова
+            {t("Попробовать снова")}
           </button>
         </main>
       ) : loading ? (
         <main className="container loading">
-          <LoaderCircle className="spin" /> Загружаем добрые дела…
+          <LoaderCircle className="spin" /> {t(" Загружаем добрые дела…")}
         </main>
       ) : route === "/" && user?.role === "organization" ? (
         <OrganizationHome
@@ -494,15 +530,17 @@ function App() {
               ) : (
                 <section className="container organization-catalog-heading">
                   <span className="home-role-badge organization-role">
-                    <Building2 size={16} /> Аккаунт организации
+                    <Building2 size={16} /> {t(" Аккаунт организации")}
                   </span>
-                  <h1>Проекты сообщества</h1>
+                  <h1>{t("Проекты сообщества")}</h1>
                   <p>
-                    Знакомьтесь с инициативами других команд и находите
-                    вдохновение для своих событий.
+                    {t(
+                      "Знакомьтесь с инициативами других команд и находите вдохновение для своих событий.",
+                    )}
                   </p>
                   <button className="text-button" onClick={() => navigate("/")}>
-                    На главную организации <ArrowRight size={16} />
+                    {t("На главную организации ")}
+                    <ArrowRight size={16} />
                   </button>
                 </section>
               )
@@ -511,25 +549,26 @@ function App() {
                 <section className="hero container">
                   <div className="hero-copy">
                     <div className="eyebrow">
-                      <span className="live-dot" /> МАЛЕНЬКИЕ ШАГИ. БОЛЬШИЕ
-                      ПЕРЕМЕНЫ.
+                      <span className="live-dot" />{" "}
+                      {t(" МАЛЕНЬКИЕ ШАГИ. БОЛЬШИЕ ПЕРЕМЕНЫ.")}
                     </div>
                     <h1>
-                      Твоя помощь.
+                      {t("Твоя помощь.")}
                       <br />
-                      Чья-то <span className="serif">надежда.</span>
+                      {t("Чья-то ")}
+                      <span className="serif">{t("надежда.")}</span>
                       <svg className="heading-swish" viewBox="0 0 320 15">
                         <path d="M3 11Q148-5 314 8" />
                       </svg>
                     </h1>
                     <p>
-                      Добрые дела ближе, чем кажется. Находи волонтёрские
-                      <br className="desktop-br" /> проекты, помогай и меняй мир
-                      вместе с нами.
+                      {t("Добрые дела ближе, чем кажется. Находи волонтёрские")}
+                      <br className="desktop-br" />{" "}
+                      {t(" проекты, помогай и меняй мир вместе с нами.")}
                     </p>
                     <div
                       className="hero-actions signup-actions"
-                      aria-label="Регистрация по роли"
+                      aria-label={t("Регистрация по роли")}
                     >
                       <button
                         className="signup-action volunteer-signup"
@@ -539,8 +578,8 @@ function App() {
                           <Heart size={23} />
                         </span>
                         <span>
-                          <strong>Найти своё дело</strong>
-                          <span>Зарегистрироваться как волонтёр</span>
+                          <strong>{t("Найти своё дело")}</strong>
+                          <span>{t("Зарегистрироваться как волонтёр")}</span>
                         </span>
                         <ArrowUpRight size={22} />
                       </button>
@@ -552,8 +591,8 @@ function App() {
                           <Building2 size={23} />
                         </span>
                         <span>
-                          <strong>Я представляю организацию</strong>
-                          <span>Создать аккаунт и собрать команду</span>
+                          <strong>{t("Я представляю организацию")}</strong>
+                          <span>{t("Создать аккаунт и собрать команду")}</span>
                         </span>
                         <ArrowUpRight size={22} />
                       </button>
@@ -568,8 +607,8 @@ function App() {
                         </span>
                       </div>
                       <span>
-                        <strong>Добро начинается с людей</strong>
-                        <small>Стань частью сообщества Алматы</small>
+                        <strong>{t("Добро начинается с людей")}</strong>
+                        <small>{t("Стань частью сообщества Алматы")}</small>
                       </span>
                     </div>
                   </div>
@@ -577,17 +616,18 @@ function App() {
                     <img
                       className="hero-photo"
                       src="/images/hero.jpg"
-                      alt="Руки участников волонтёрской команды"
+                      alt={t("Руки участников волонтёрской команды")}
                     />
                     <div className="hero-photo-shade" />
                     <span className="photo-tag">
-                      <span className="live-dot" /> ВМЕСТЕ МЫ МОЖЕМ БОЛЬШЕ
+                      <span className="live-dot" />{" "}
+                      {t(" ВМЕСТЕ МЫ МОЖЕМ БОЛЬШЕ")}
                     </span>
                     <div className="photo-caption">
                       <span>
-                        Город один.
+                        {t("Город один.")}
                         <br />
-                        Добрых дел — тысячи.
+                        {t("Добрых дел — тысячи.")}
                       </span>
                       <span className="photo-arrow">
                         <ArrowUpRight size={26} />
@@ -598,8 +638,9 @@ function App() {
                         <Heart size={24} />
                       </span>
                       <div>
-                        Неравнодушие —<br />
-                        <strong>это суперсила.</strong>
+                        {t("Неравнодушие —")}
+                        <br />
+                        <strong>{t("это суперсила.")}</strong>
                       </div>
                       <svg viewBox="0 0 45 45">
                         <path d="M5 30Q25 35 27 8M17 15L28 6 35 17" />
@@ -614,9 +655,9 @@ function App() {
                       <Leaf size={25} />
                     </span>
                     <p>
-                      Хорошие изменения
+                      {t("Хорошие изменения")}
                       <br />
-                      <strong>начинаются с нас</strong>
+                      <strong>{t("начинаются с нас")}</strong>
                     </p>
                   </div>
                   <div>
@@ -624,21 +665,22 @@ function App() {
                       {events.filter(open).length}
                       <span>↗</span>
                     </strong>
-                    <p>открытых проектов</p>
+                    <p>{t("открытых проектов")}</p>
                   </div>
                   <div>
                     <strong>5</strong>
-                    <p>направлений помощи</p>
+                    <p>{t("направлений помощи")}</p>
                   </div>
                   <div>
                     <strong>
-                      Алматы<span className="tiny-heart">♡</span>
+                      {t("Алматы")}
+                      <span className="tiny-heart">♡</span>
                     </strong>
-                    <p>город, который объединяет</p>
+                    <p>{t("город, который объединяет")}</p>
                   </div>
                   <div className="impact-last">
-                    <span>Каждый вклад важен.</span>
-                    <strong>Твой тоже.</strong>
+                    <span>{t("Каждый вклад важен.")}</span>
+                    <strong>{t("Твой тоже.")}</strong>
                     <ArrowUpRight size={24} />
                   </div>
                 </section>
@@ -647,12 +689,17 @@ function App() {
             <section id="projects" className="projects container">
               <div className="section-heading">
                 <div>
-                  <div className="eyebrow">НАЙДИ ТО, ЧТО ОТКЛИКАЕТСЯ</div>
+                  <div className="eyebrow">
+                    {t("НАЙДИ ТО, ЧТО ОТКЛИКАЕТСЯ")}
+                  </div>
                   <h2>
-                    Добрые дела ждут тебя<span className="green-dot">.</span>
+                    {t("Добрые дела ждут тебя")}
+                    <span className="green-dot">.</span>
                   </h2>
                   <p>
-                    Выбирай проект по душе. А мы поможем сделать первый шаг.
+                    {t(
+                      "Выбирай проект по душе. А мы поможем сделать первый шаг.",
+                    )}
                   </p>
                 </div>
                 <button
@@ -665,11 +712,12 @@ function App() {
                     size={17}
                     fill={favoritesOnly ? "currentColor" : "none"}
                   />{" "}
-                  Избранное {saved.length > 0 && <span>{saved.length}</span>}
+                  {t("Избранное ")}
+                  {saved.length > 0 && <span>{saved.length}</span>}
                 </button>
               </div>
-              <div className="category-tabs" aria-label="Направления">
-                {CATEGORIES.map((c) => (
+              <div className="category-tabs" aria-label={t("Направления")}>
+                {getCategories().map((c) => (
                   <button
                     key={c.id}
                     className={category === c.id ? "selected" : ""}
@@ -683,9 +731,9 @@ function App() {
               <div className="catalog-toolbar">
                 <div className="period-tabs">
                   {[
-                    ["active", "Актуальные"],
-                    ["future", "Предстоящие"],
-                    ["past", "Завершённые"],
+                    ["active", t("Актуальные")],
+                    ["future", t("Предстоящие")],
+                    ["past", t("Завершённые")],
                   ].map(([id, label]) => (
                     <button
                       key={id}
@@ -705,13 +753,13 @@ function App() {
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Название, место или организация"
-                      aria-label="Поиск проектов"
+                      placeholder={t("Название, место или организация")}
+                      aria-label={t("Поиск проектов")}
                     />
                     {search && (
                       <button
                         onClick={() => setSearch("")}
-                        aria-label="Очистить поиск"
+                        aria-label={t("Очистить поиск")}
                       >
                         <X size={14} />
                       </button>
@@ -720,21 +768,23 @@ function App() {
                   <label className="sort">
                     <SlidersHorizontal size={16} />
                     <select
-                      aria-label="Сортировка"
+                      aria-label={t("Сортировка")}
                       value={sort}
                       onChange={(e) => setSort(e.target.value)}
                     >
-                      <option value="soon">Ближайшие</option>
-                      <option value="new">Сначала новые</option>
-                      <option value="spots">Больше мест</option>
+                      <option value="soon">{t("Ближайшие")}</option>
+                      <option value="new">{t("Сначала новые")}</option>
+                      <option value="spots">{t("Больше мест")}</option>
                     </select>
                   </label>
                 </div>
               </div>
               <div className="results-count">
-                {favoritesOnly ? "Избранные проекты" : "Проекты в Алматы"}{" "}
+                {favoritesOnly ? t("Избранные проекты") : t("Проекты в Алматы")}{" "}
                 <span>{filtered.length}</span>
-                <span className="timezone-note">Время указано по Алматы</span>
+                <span className="timezone-note">
+                  {t("Время указано по Алматы")}
+                </span>
               </div>
               {filtered.length ? (
                 <div className="event-grid">
@@ -751,19 +801,23 @@ function App() {
               ) : (
                 <Empty
                   icon={Search}
-                  title="Пока ничего не нашлось"
-                  text="Попробуйте другое направление, период или поисковый запрос."
+                  title={t("Пока ничего не нашлось")}
+                  text={t(
+                    "Попробуйте другое направление, период или поисковый запрос.",
+                  )}
                   action={() => {
                     setCategory("all");
                     setSearch("");
                     setPeriod("active");
                     setFavoritesOnly(false);
                   }}
-                  button="Сбросить фильтры"
+                  button={t("Сбросить фильтры")}
                 />
               )}
               <div className="catalog-bottom">
-                <span>Даже несколько часов могут изменить чей-то день.</span>
+                <span>
+                  {t("Даже несколько часов могут изменить чей-то день.")}
+                </span>
                 <Heart size={17} />
               </div>
             </section>
@@ -775,11 +829,14 @@ function App() {
                     <span>✳</span>
                   </div>
                   <div>
-                    <span className="eyebrow">ДЕЛАТЬ ДОБРО ЛЕГЧЕ ВМЕСТЕ</span>
-                    <h2>Ищете людей, которым не всё равно?</h2>
+                    <span className="eyebrow">
+                      {t("ДЕЛАТЬ ДОБРО ЛЕГЧЕ ВМЕСТЕ")}
+                    </span>
+                    <h2>{t("Ищете людей, которым не всё равно?")}</h2>
                     <p>
-                      Расскажите о своём проекте. Мы поможем собрать вашу
-                      команду.
+                      {t(
+                        "Расскажите о своём проекте. Мы поможем собрать вашу команду.",
+                      )}
                     </p>
                   </div>
                   <button
@@ -788,7 +845,8 @@ function App() {
                       registerAs("organization");
                     }}
                   >
-                    Создать проект <Plus size={18} />
+                    {t("Создать проект ")}
+                    <Plus size={18} />
                   </button>
                 </section>
               </>
@@ -796,30 +854,35 @@ function App() {
               <section className="container volunteer-bottom-cta">
                 <Heart size={30} />
                 <div>
-                  <h2>Твоя история добрых дел уже началась</h2>
+                  <h2>{t("Твоя история добрых дел уже началась")}</h2>
                   <p>
-                    Следи за ответами организаторов и подтверждай участие в
-                    своём кабинете.
+                    {t(
+                      "Следи за ответами организаторов и подтверждай участие в своём кабинете.",
+                    )}
                   </p>
                 </div>
                 <button className="button dark" onClick={goDashboard}>
-                  Мои заявки <ArrowRight size={17} />
+                  {t("Мои заявки ")}
+                  <ArrowRight size={17} />
                 </button>
               </section>
             ) : (
               <section className="container volunteer-bottom-cta">
                 <Building2 size={30} />
                 <div>
-                  <h2>Готовы к следующему проекту?</h2>
+                  <h2>{t("Готовы к следующему проекту?")}</h2>
                   <p>
-                    Создайте событие и пригласите волонтёров в свою команду.
+                    {t(
+                      "Создайте событие и пригласите волонтёров в свою команду.",
+                    )}
                   </p>
                 </div>
                 <button
                   className="button dark"
                   onClick={() => setEventForm("new")}
                 >
-                  Создать проект <Plus size={17} />
+                  {t("Создать проект ")}
+                  <Plus size={17} />
                 </button>
               </section>
             )}
@@ -829,7 +892,7 @@ function App() {
         currentEvent ? (
           <main className="container detail-page">
             <button className="back-link" onClick={() => navigate("/")}>
-              <ArrowRight size={16} /> Назад к проектам
+              <ArrowRight size={16} /> {t(" Назад к проектам")}
             </button>
             <div className="detail-grid">
               <article>
@@ -837,13 +900,14 @@ function App() {
                   <img src={currentEvent.image} alt={currentEvent.title} />
                   <span className={"category-pill " + currentEvent.category}>
                     {
-                      CATEGORIES.find((c) => c.id === currentEvent.category)
-                        ?.label
+                      getCategories().find(
+                        (c) => c.id === currentEvent.category,
+                      )?.label
                     }
                   </span>
                   <button
                     className="save-button"
-                    aria-label="В избранное"
+                    aria-label={t("В избранное")}
                     onClick={() => toggleSaved(currentEvent.id)}
                   >
                     <Heart
@@ -867,30 +931,33 @@ function App() {
                   <h1>{currentEvent.title}</h1>
                 </div>
                 <div className="detail-prose">
-                  <h2>О проекте</h2>
+                  <h2>{t("О проекте")}</h2>
                   <p>{currentEvent.description}</p>
-                  <h2>Что нужно знать</h2>
+                  <h2>{t("Что нужно знать")}</h2>
                   <p>
                     {currentEvent.requirements ||
-                      "Специальная подготовка не требуется. Возьмите с собой хорошее настроение! Все детали уточнит организатор."}
+                      t(
+                        "Специальная подготовка не требуется. Возьмите с собой хорошее настроение! Все детали уточнит организатор.",
+                      )}
                   </p>
                   <div className="detail-tip">
                     <Leaf size={24} />
                     <p>
-                      <strong>Твой вклад имеет значение</strong>
+                      <strong>{t("Твой вклад имеет значение")}</strong>
                       <br />
-                      После одобрения заявки не забудь подтвердить участие —
-                      организатор будет рассчитывать на тебя.
+                      {t(
+                        "После одобрения заявки не забудь подтвердить участие — организатор будет рассчитывать на тебя.",
+                      )}
                     </p>
                   </div>
-                  <h2>Организатор</h2>
+                  <h2>{t("Организатор")}</h2>
                   <div className="organization-profile">
                     <span className="avatar">
                       <Leaf />
                     </span>
                     <div>
                       <h3>{currentEvent.organization}</h3>
-                      <p>Волонтёрская организация · Алматы</p>
+                      <p>{t("Волонтёрская организация · Алматы")}</p>
                     </div>
                   </div>
                 </div>
@@ -903,36 +970,39 @@ function App() {
                 >
                   <span className="live-dot" />
                   {past(currentEvent)
-                    ? "Событие завершено"
+                    ? t("Событие завершено")
                     : open(currentEvent)
-                      ? "Приём заявок открыт"
-                      : "Приём заявок закрыт"}
+                      ? t("Приём заявок открыт")
+                      : t("Приём заявок закрыт")}
                 </span>
-                <h3>Присоединяйся к доброму делу</h3>
+                <h3>{t("Присоединяйся к доброму делу")}</h3>
                 <div className="event-facts">
                   <Fact
                     icon={CalendarDays}
-                    title="Когда"
+                    title={t("Когда")}
                     text={`${date(currentEvent.starts_at)}, ${time(currentEvent.starts_at)}`}
                   />
                   <Fact
                     icon={MapPin}
-                    title="Где"
+                    title={t("Где")}
                     text={currentEvent.location}
                   />
                   <Fact
                     icon={Clock3}
-                    title="Продолжительность"
-                    text={`${currentEvent.hours} ч. волонтёрства`}
+                    title={t("Продолжительность")}
+                    text={t("{0} ч. волонтёрства", [currentEvent.hours])}
                   />
                   <Fact
                     icon={Users}
-                    title="Участники"
-                    text={`${currentEvent.occupied} из ${currentEvent.capacity} мест занято`}
+                    title={t("Участники")}
+                    text={t("{0} из {1} мест занято", [
+                      currentEvent.occupied,
+                      currentEvent.capacity,
+                    ])}
                   />
                   <Fact
                     icon={CalendarDays}
-                    title="Подать заявку до"
+                    title={t("Подать заявку до")}
                     text={stamp(currentEvent.deadline)}
                   />
                 </div>
@@ -952,7 +1022,8 @@ function App() {
                     className="button dark full"
                     onClick={() => setEventForm(currentEvent)}
                   >
-                    Редактировать событие <ArrowUpRight size={18} />
+                    {t("Редактировать событие ")}
+                    <ArrowUpRight size={18} />
                   </button>
                 ) : ownApplication(currentEvent) ? (
                   <>
@@ -961,10 +1032,11 @@ function App() {
                         "status " + ownApplication(currentEvent)!.status
                       }
                     >
-                      {STATUSES[ownApplication(currentEvent)!.status]}
+                      {getStatuses()[ownApplication(currentEvent)!.status]}
                     </div>
                     <button className="button dark full" onClick={goDashboard}>
-                      Открыть мои заявки <ArrowRight size={17} />
+                      {t("Открыть мои заявки ")}
+                      <ArrowRight size={17} />
                     </button>
                   </>
                 ) : (
@@ -975,12 +1047,15 @@ function App() {
                     }
                     onClick={() => beginApply(currentEvent)}
                   >
-                    {open(currentEvent) ? "Хочу помочь" : "Заявки закрыты"}{" "}
+                    {open(currentEvent)
+                      ? t("Хочу помочь")
+                      : t("Заявки закрыты")}{" "}
                     <ArrowUpRight size={18} />
                   </button>
                 )}
                 <p className="sidebar-note">
-                  <ShieldCheck size={14} /> Участие бесплатное. Добро бесценно.
+                  <ShieldCheck size={14} />{" "}
+                  {t(" Участие бесплатное. Добро бесценно.")}
                 </p>
                 <button
                   className="button outline full"
@@ -993,7 +1068,7 @@ function App() {
                       )
                   }
                 >
-                  <Copy size={16} /> Поделиться проектом
+                  <Copy size={16} /> {t(" Поделиться проектом")}
                 </button>
               </aside>
             </div>
@@ -1002,10 +1077,10 @@ function App() {
           <main className="container empty-page">
             <Empty
               icon={Search}
-              title="Проект не найден"
-              text="Возможно, адрес содержит ошибку."
+              title={t("Проект не найден")}
+              text={t("Возможно, адрес содержит ошибку.")}
               action={() => navigate("/")}
-              button="К проектам"
+              button={t("К проектам")}
             />
           </main>
         )
@@ -1031,13 +1106,15 @@ function App() {
               icon={UserRound}
               title={
                 user
-                  ? "Страница для волонтёров"
-                  : "Войдите, чтобы увидеть свои проекты"
+                  ? t("Страница для волонтёров")
+                  : t("Войдите, чтобы увидеть свои проекты")
               }
               text={
                 user
-                  ? "Созданные вашей организацией события доступны в личном кабинете."
-                  : "Здесь будут ваши предстоящие события и история участия."
+                  ? t(
+                      "Созданные вашей организацией события доступны в личном кабинете.",
+                    )
+                  : t("Здесь будут ваши предстоящие события и история участия.")
               }
               action={
                 user
@@ -1047,7 +1124,7 @@ function App() {
                       setAuth("login");
                     }
               }
-              button={user ? "Мой кабинет" : "Войти"}
+              button={user ? t("Мой кабинет") : t("Войти")}
             />
           </main>
         )
@@ -1058,19 +1135,23 @@ function App() {
               <div className="dashboard-heading">
                 <div>
                   <div className="eyebrow">
-                    ЛИЧНЫЙ КАБИНЕТ ·{" "}
-                    {user.role === "organization" ? "ОРГАНИЗАЦИЯ" : "ВОЛОНТЁР"}
+                    {t("ЛИЧНЫЙ КАБИНЕТ ·")}{" "}
+                    {user.role === "organization"
+                      ? t("ОРГАНИЗАЦИЯ")
+                      : t("ВОЛОНТЁР")}
                   </div>
                   <h1>
                     {user.role === "organization"
                       ? user.name
-                      : `Привет, ${user.name.split(" ")[0]}!`}{" "}
+                      : t("Привет, {0}!", [user.name.split(" ")[0]])}{" "}
                     <span className="green-dot">✳</span>
                   </h1>
                   <p>
                     {user.role === "organization"
-                      ? "Ваши проекты, команда и добрые перемены — в одном месте."
-                      : "Здесь начинается твоя история добрых дел."}
+                      ? t(
+                          "Ваши проекты, команда и добрые перемены — в одном месте.",
+                        )
+                      : t("Здесь начинается твоя история добрых дел.")}
                   </p>
                 </div>
                 <div className="button-row">
@@ -1078,19 +1159,19 @@ function App() {
                     className="button outline"
                     onClick={() => setProfile(true)}
                   >
-                    <UserRound size={17} /> Мой профиль
+                    <UserRound size={17} /> {t(" Мой профиль")}
                   </button>
                   {user.role === "organization" && (
                     <button
                       className="button dark"
                       onClick={() => setEventForm("new")}
                     >
-                      <Plus size={18} /> Создать событие
+                      <Plus size={18} /> {t(" Создать событие")}
                     </button>
                   )}
                   <button
                     className="icon-button"
-                    aria-label="Выйти из аккаунта"
+                    aria-label={t("Выйти из аккаунта")}
                     onClick={async () => {
                       try {
                         await api("/auth/logout", "POST");
@@ -1109,30 +1190,30 @@ function App() {
               <div className="dashboard-stats">
                 {(user.role === "organization"
                   ? [
-                      ["Мои события", ownedEvents.length, CalendarDays],
+                      [t("Мои события"), ownedEvents.length, CalendarDays],
                       [
-                        "Заявки на рассмотрении",
+                        t("Заявки на рассмотрении"),
                         applications.filter((a) => a.status === "pending")
                           .length,
                         Clock3,
                       ],
                       [
-                        "Подтвердили участие",
+                        t("Подтвердили участие"),
                         applications.filter((a) => a.status === "confirmed")
                           .length,
                         CheckCheck,
                       ],
                     ]
                   : [
-                      ["Мои заявки", applications.length, Send],
+                      [t("Мои заявки"), applications.length, Send],
                       [
-                        "Подтверждённые участия",
+                        t("Подтверждённые участия"),
                         applications.filter((a) => a.status === "confirmed")
                           .length,
                         CheckCheck,
                       ],
                       [
-                        "Часы завершённых проектов",
+                        t("Часы завершённых проектов"),
                         groupParticipations(applications).completed.reduce(
                           (s, a) => s + (a.hours || 0),
                           0,
@@ -1163,19 +1244,21 @@ function App() {
                       className={dashTab === "events" ? "selected" : ""}
                       onClick={() => setDashTab("events")}
                     >
-                      Мои события <span>{ownedEvents.length}</span>
+                      {t("Мои события ")}
+                      <span>{ownedEvents.length}</span>
                     </button>
                     <button
                       className={dashTab === "applications" ? "selected" : ""}
                       onClick={() => setDashTab("applications")}
                     >
-                      Заявки участников <span>{applications.length}</span>
+                      {t("Заявки участников ")}
+                      <span>{applications.length}</span>
                     </button>
                     <button
                       className={dashTab === "roster" ? "selected" : ""}
                       onClick={() => setDashTab("roster")}
                     >
-                      Подтверждённый состав
+                      {t("Подтверждённый состав")}
                     </button>
                   </div>
                   {dashTab === "events" ? (
@@ -1192,12 +1275,12 @@ function App() {
                                 }
                               >
                                 {past(e)
-                                  ? "Завершено"
+                                  ? t("Завершено")
                                   : e.closed
-                                    ? "Закрыто организатором"
+                                    ? t("Закрыто организатором")
                                     : open(e)
-                                      ? "Приём открыт"
-                                      : "Приём закрыт"}
+                                      ? t("Приём открыт")
+                                      : t("Приём закрыт")}
                               </span>
                               <button
                                 onClick={() => navigate("/events/" + e.id)}
@@ -1206,7 +1289,8 @@ function App() {
                               </button>
                               <p>
                                 {stamp(e.starts_at)} · {e.application_count}{" "}
-                                заявок · {e.occupied}/{e.capacity} мест
+                                {t("заявок · ")}
+                                {e.occupied}/{e.capacity} {t(" мест")}
                               </p>
                             </div>
                             <div className="manage-actions">
@@ -1217,13 +1301,13 @@ function App() {
                                   setDashTab("applications");
                                 }}
                               >
-                                Заявки
+                                {t("Заявки")}
                               </button>
                               <button
                                 className="text-button"
                                 onClick={() => setEventForm(e)}
                               >
-                                Редактировать
+                                {t("Редактировать")}
                               </button>
                               {!past(e) && (
                                 <button
@@ -1239,7 +1323,9 @@ function App() {
                                     )
                                   }
                                 >
-                                  {e.closed ? "Открыть приём" : "Закрыть приём"}
+                                  {e.closed
+                                    ? t("Открыть приём")
+                                    : t("Закрыть приём")}
                                 </button>
                               )}
                             </div>
@@ -1249,23 +1335,25 @@ function App() {
                     ) : (
                       <Empty
                         icon={CalendarDays}
-                        title="Ваш первый проект начинается здесь"
-                        text="Создайте событие и поделитесь ссылкой с будущими волонтёрами."
+                        title={t("Ваш первый проект начинается здесь")}
+                        text={t(
+                          "Создайте событие и поделитесь ссылкой с будущими волонтёрами.",
+                        )}
                         action={() => setEventForm("new")}
-                        button="Создать событие"
+                        button={t("Создать событие")}
                       />
                     )
                   ) : (
                     <>
                       <div className="dashboard-filters">
                         <label>
-                          Событие
+                          {t("Событие")}
                           <select
-                            aria-label="Событие"
+                            aria-label={t("Событие")}
                             value={selectedEvent}
                             onChange={(e) => setSelectedEvent(e.target.value)}
                           >
-                            <option value="all">Все события</option>
+                            <option value="all">{t("Все события")}</option>
                             {ownedEvents.map((e) => (
                               <option key={e.id} value={e.id}>
                                 {e.title}
@@ -1275,16 +1363,16 @@ function App() {
                         </label>
                         {dashTab === "applications" && (
                           <label>
-                            Статус
+                            {t("Статус")}
                             <select
-                              aria-label="Статус заявки"
+                              aria-label={t("Статус заявки")}
                               value={applicationStatus}
                               onChange={(e) =>
                                 setApplicationStatus(e.target.value)
                               }
                             >
-                              <option value="all">Все заявки</option>
-                              {Object.entries(STATUSES).map(([k, v]) => (
+                              <option value="all">{t("Все заявки")}</option>
+                              {Object.entries(getStatuses()).map(([k, v]) => (
                                 <option key={k} value={k}>
                                   {v}
                                 </option>
@@ -1295,9 +1383,9 @@ function App() {
                         {dashTab === "roster" && selectedEvent !== "all" && (
                           <a
                             className="button dark"
-                            href={`/api/events/${selectedEvent}/roster?format=csv`}
+                            href={`/api/events/${selectedEvent}/roster?format=csv&lang=${language}`}
                           >
-                            <Download size={17} /> Скачать CSV
+                            <Download size={17} /> {t(" Скачать CSV")}
                           </a>
                         )}
                       </div>
@@ -1306,9 +1394,9 @@ function App() {
                           <div className="inline-info">
                             <ShieldCheck size={20} />
                             <span>
-                              В списке только участники, которые подтвердили
-                              участие. Одобренные без подтверждения показаны
-                              отдельно ниже.
+                              {t(
+                                "В списке только участники, которые подтвердили участие. Одобренные без подтверждения показаны отдельно ниже.",
+                              )}
                             </span>
                           </div>
                           <Roster
@@ -1320,7 +1408,7 @@ function App() {
                             )}
                           />
                           <h3 className="subheading">
-                            Одобрены, но ещё не подтвердили
+                            {t("Одобрены, но ещё не подтвердили")}
                           </h3>
                           <Roster
                             applications={applications.filter(
@@ -1376,8 +1464,10 @@ function App() {
                           ) : (
                             <Empty
                               icon={Users}
-                              title="Заявок пока нет"
-                              text="Поделитесь ссылкой на событие или измените фильтры."
+                              title={t("Заявок пока нет")}
+                              text={t(
+                                "Поделитесь ссылкой на событие или измените фильтры.",
+                              )}
                             />
                           )}
                         </div>
@@ -1388,9 +1478,9 @@ function App() {
               ) : (
                 <>
                   <div className="dashboard-tabs">
-                    <button className="selected">Мои заявки</button>
+                    <button className="selected">{t("Мои заявки")}</button>
                     <button onClick={() => navigate("/my-projects")}>
-                      Мои проекты
+                      {t("Мои проекты")}
                     </button>
                     <button
                       onClick={() => {
@@ -1398,7 +1488,8 @@ function App() {
                         navigate("/");
                       }}
                     >
-                      Избранное <span>{saved.length}</span>
+                      {t("Избранное ")}
+                      <span>{saved.length}</span>
                     </button>
                   </div>
                   {applications.length ? (
@@ -1408,7 +1499,7 @@ function App() {
                           <img src={a.image} alt="" />
                           <div>
                             <span className={"status " + a.status}>
-                              {STATUSES[a.status]}
+                              {getStatuses()[a.status]}
                             </span>
                             <button
                               onClick={() => navigate("/events/" + a.event_id)}
@@ -1420,15 +1511,20 @@ function App() {
                               <span>·</span> {a.location}
                             </p>
                             <small>
-                              Заявка: {stamp(a.created_at)}
+                              {t("Заявка: ")}
+                              {stamp(a.created_at)}
                               {a.decision_at &&
-                                ` · Решение: ${stamp(a.decision_at)}`}
+                                t(" · Решение: {0}", [stamp(a.decision_at)])}
                             </small>
                             {a.status === "accepted" && (
                               <p className="confirmation-hint">
                                 {Date.parse(a.starts_at) < Date.now()
-                                  ? "Событие уже началось. Участие не было подтверждено."
-                                  : "Вас ждут! Подтвердите, что сможете прийти."}
+                                  ? t(
+                                      "Событие уже началось. Участие не было подтверждено.",
+                                    )
+                                  : t(
+                                      "Вас ждут! Подтвердите, что сможете прийти.",
+                                    )}
                               </p>
                             )}
                           </div>
@@ -1444,7 +1540,7 @@ function App() {
                                   )
                                 }
                               >
-                                <Check size={17} /> Подтвердить участие
+                                <Check size={17} /> {t(" Подтвердить участие")}
                               </button>
                             )}
                           {a.status === "confirmed" && (
@@ -1456,10 +1552,12 @@ function App() {
                   ) : (
                     <Empty
                       icon={Send}
-                      title="Первое доброе дело ещё впереди"
-                      text="Найдите проект по душе и отправьте заявку — её статус появится здесь."
+                      title={t("Первое доброе дело ещё впереди")}
+                      text={t(
+                        "Найдите проект по душе и отправьте заявку — её статус появится здесь.",
+                      )}
                       action={() => navigate("/")}
-                      button="Найти проект"
+                      button={t("Найти проект")}
                     />
                   )}
                 </>
@@ -1468,21 +1566,22 @@ function App() {
           ) : (
             <Empty
               icon={UserRound}
-              title="Добро пожаловать в личный кабинет"
-              text="Войдите, чтобы увидеть свои события и заявки."
+              title={t("Добро пожаловать в личный кабинет")}
+              text={t("Войдите, чтобы увидеть свои события и заявки.")}
               action={() => setAuth("login")}
-              button="Войти"
+              button={t("Войти")}
             />
           )}
         </main>
       ) : route === "/organizations" ? (
         <main className="container info-page">
-          <div className="eyebrow">ТЕ, КТО ОБЪЕДИНЯЕТ</div>
+          <div className="eyebrow">{t("ТЕ, КТО ОБЪЕДИНЯЕТ")}</div>
           <h1>
-            Организации Алматы<span className="green-dot">.</span>
+            {t("Организации Алматы")}
+            <span className="green-dot">.</span>
           </h1>
           <p className="lead">
-            Знакомьтесь с командами, которые делают наш город лучше.
+            {t("Знакомьтесь с командами, которые делают наш город лучше.")}
           </p>
           <div className="org-grid">
             {Array.from(
@@ -1495,8 +1594,9 @@ function App() {
                 <ShieldCheck className="org-verified" />
                 <h2>{e.organization}</h2>
                 <p>
-                  Команда волонтёрских инициатив в Алматы. Присоединяйтесь к
-                  добрым делам и создавайте перемены вместе.
+                  {t(
+                    "Команда волонтёрских инициатив в Алматы. Присоединяйтесь к добрым делам и создавайте перемены вместе.",
+                  )}
                 </p>
                 <span>
                   {
@@ -1504,7 +1604,7 @@ function App() {
                       (v) => v.organization_id === e.organization_id && open(v),
                     ).length
                   }{" "}
-                  открытых проектов
+                  {t("открытых проектов")}
                 </span>
                 <button
                   className="button dark full"
@@ -1520,7 +1620,8 @@ function App() {
                     );
                   }}
                 >
-                  Посмотреть проекты <ArrowUpRight size={17} />
+                  {t("Посмотреть проекты ")}
+                  <ArrowUpRight size={17} />
                 </button>
               </article>
             ))}
@@ -1528,34 +1629,41 @@ function App() {
         </main>
       ) : route === "/about" ? (
         <main className="container info-page">
-          <div className="eyebrow">ДОБРО БЕЗ ЛИШНИХ СЛОЖНОСТЕЙ</div>
+          <div className="eyebrow">{t("ДОБРО БЕЗ ЛИШНИХ СЛОЖНОСТЕЙ")}</div>
           <h1>
-            Несколько шагов.
+            {t("Несколько шагов.")}
             <br />
-            <span className="serif">Настоящие перемены.</span>
+            <span className="serif">{t("Настоящие перемены.")}</span>
           </h1>
           <p className="lead">
-            Kömek соединяет людей, которые хотят помочь, и команды, которым
-            нужна поддержка.
+            {t(
+              "Kömek соединяет людей, которые хотят помочь, и команды, которым нужна поддержка.",
+            )}
           </p>
           <div className="how-grid">
             {[
               [
                 "01",
-                "Найди своё дело",
-                "Выбери направление, посмотри события и найди проект, который тебе откликается.",
+                t("Найди своё дело"),
+                t(
+                  "Выбери направление, посмотри события и найди проект, который тебе откликается.",
+                ),
                 Search,
               ],
               [
                 "02",
-                "Расскажи о себе",
-                "Зарегистрируйся как волонтёр и подай заявку. Организатор увидит твои контакты и мотивацию.",
+                t("Расскажи о себе"),
+                t(
+                  "Зарегистрируйся как волонтёр и подай заявку. Организатор увидит твои контакты и мотивацию.",
+                ),
                 Send,
               ],
               [
                 "03",
-                "Подтверди участие",
-                "Следи за статусом в кабинете. После одобрения подтверди, что придёшь, — команда ждёт тебя.",
+                t("Подтверди участие"),
+                t(
+                  "Следи за статусом в кабинете. После одобрения подтверди, что придёшь, — команда ждёт тебя.",
+                ),
                 CheckCheck,
               ],
             ].map(([n, title, body, Icon]) => {
@@ -1572,11 +1680,11 @@ function App() {
           </div>
           <div className="about-banner">
             <div>
-              <h2>Для организаций</h2>
+              <h2>{t("Для организаций")}</h2>
               <p>
-                Создавайте события, принимайте решения по заявкам и скачивайте
-                подтверждённый состав. Все проекты бесплатны на этапе пилота.
-                Встроенный чат и оплата не входят в MVP.
+                {t(
+                  "Создавайте события, принимайте решения по заявкам и скачивайте подтверждённый состав. Все проекты бесплатны на этапе пилота. Встроенный чат и оплата не входят в MVP.",
+                )}
               </p>
             </div>
             <button
@@ -1588,8 +1696,8 @@ function App() {
               }}
             >
               {user?.role === "volunteer"
-                ? "Посмотреть организации"
-                : "Собрать команду"}{" "}
+                ? t("Посмотреть организации")
+                : t("Собрать команду")}{" "}
               <ArrowUpRight size={17} />
             </button>
           </div>
@@ -1598,10 +1706,10 @@ function App() {
         <main className="container empty-page">
           <Empty
             icon={Search}
-            title="Страница не найдена"
-            text="Вернёмся туда, где ждут добрые дела?"
+            title={t("Страница не найдена")}
+            text={t("Вернёмся туда, где ждут добрые дела?")}
             action={() => navigate("/")}
-            button="На главную"
+            button={t("На главную")}
           />
         </main>
       )}
@@ -1615,9 +1723,9 @@ function App() {
               kömek<span className="brand-dot">.</span>
             </button>
             <p>
-              Объединяем людей.
+              {t("Объединяем людей.")}
               <br />
-              Умножаем добро.
+              {t("Умножаем добро.")}
             </p>
           </div>
           <div className="footer-links">
@@ -1626,30 +1734,34 @@ function App() {
                 navigate(user?.role === "organization" ? "/projects" : "/")
               }
             >
-              Найти проект
+              {t("Найти проект")}
             </button>
             <button onClick={() => navigate("/organizations")}>
-              Организации
+              {t("Организации")}
             </button>
-            <button onClick={() => navigate("/about")}>О платформе</button>
+            <button onClick={() => navigate("/about")}>
+              {t("О платформе")}
+            </button>
           </div>
           <div className="footer-note">
-            <span>Сделано с заботой об Алматы</span>
+            <span>{t("Сделано с заботой об Алматы")}</span>
             <Mountain size={40} strokeWidth={1} />
           </div>
         </div>
         <div className="container footer-bottom">
-          <span>© {new Date().getFullYear()} Kömek. Каждый может помочь.</span>
+          <span>
+            © {new Date().getFullYear()} {t(" Kömek. Каждый может помочь.")}
+          </span>
           <div>
             <button onClick={() => setInfo("privacy")}>
-              Конфиденциальность
+              {t("Конфиденциальность")}
             </button>
             <button onClick={() => setInfo("terms")}>
-              Условия использования
+              {t("Условия использования")}
             </button>
           </div>
           <span className="pilot-badge">
-            <span className="live-dot" /> Пилотная версия
+            <span className="live-dot" /> {t(" Пилотная версия")}
           </span>
         </div>
       </footer>
@@ -1657,13 +1769,13 @@ function App() {
         <Modal
           title={
             auth === "login"
-              ? "Рады видеть тебя снова"
-              : "Давай делать добро вместе"
+              ? t("Рады видеть тебя снова")
+              : t("Давай делать добро вместе")
           }
           subtitle={
             auth === "login"
-              ? "Войди, чтобы продолжить свою историю добрых дел."
-              : "Один аккаунт — много возможностей помочь."
+              ? t("Войди, чтобы продолжить свою историю добрых дел.")
+              : t("Один аккаунт — много возможностей помочь.")
           }
           onClose={() => setAuth(null)}
         >
@@ -1680,9 +1792,13 @@ function App() {
         <Modal
           wide
           title={
-            eventForm === "new" ? "Новое доброе дело" : "Редактировать событие"
+            eventForm === "new"
+              ? t("Новое доброе дело")
+              : t("Редактировать событие")
           }
-          subtitle="Расскажите о проекте — ваша команда обязательно найдётся."
+          subtitle={t(
+            "Расскажите о проекте — ваша команда обязательно найдётся.",
+          )}
           onClose={() => setEventForm(null)}
         >
           <EventForm
@@ -1708,7 +1824,7 @@ function App() {
       )}
       {applyEvent && user && (
         <Modal
-          title="Твоё доброе дело начинается здесь"
+          title={t("Твоё доброе дело начинается здесь")}
           subtitle={applyEvent.title}
           onClose={() => setApplyEvent(null)}
         >
@@ -1731,11 +1847,11 @@ function App() {
       )}
       {profile && user && (
         <Modal
-          title="Мой профиль"
+          title={t("Мой профиль")}
           subtitle={
             user.role === "organization"
-              ? "Пусть волонтёры узнают вашу команду."
-              : "Расскажи немного о себе."
+              ? t("Пусть волонтёры узнают вашу команду.")
+              : t("Расскажи немного о себе.")
           }
           onClose={() => setProfile(false)}
         >
@@ -1750,13 +1866,13 @@ function App() {
               setProfile(false);
               notify("Профиль сохранён.");
             }}
-            button="Сохранить изменения"
+            button={t("Сохранить изменения")}
           >
             <Field
               label={
                 user.role === "organization"
-                  ? "Название организации"
-                  : "Имя и фамилия"
+                  ? t("Название организации")
+                  : t("Имя и фамилия")
               }
               name="name"
               defaultValue={user.name}
@@ -1764,24 +1880,24 @@ function App() {
               minLength={2}
             />
             <Field
-              label="Email"
+              label={t("Email")}
               name="email"
               type="email"
               defaultValue={user.email}
               disabled
             />
             <Field
-              label="Университет / место работы"
+              label={t("Университет / место работы")}
               name="university"
               defaultValue={user.university}
             />
             <Field
-              label="Telegram или email для связи"
+              label={t("Telegram или email для связи")}
               name="contact"
               defaultValue={user.contact}
             />
             <label className="field">
-              О себе / об организации
+              {t("О себе / об организации")}
               <textarea
                 name="bio"
                 defaultValue={user.bio}
@@ -1796,8 +1912,8 @@ function App() {
         <Modal
           title={
             info === "privacy"
-              ? "Обработка персональных данных"
-              : "Условия пилотной платформы"
+              ? t("Обработка персональных данных")
+              : t("Условия пилотной платформы")
           }
           onClose={() => setInfo(null)}
         >
@@ -1805,41 +1921,37 @@ function App() {
             {info === "privacy" ? (
               <>
                 <p>
-                  При регистрации сохраняются имя, email, защищённый хеш пароля
-                  и данные профиля. При подаче заявки сохраняются имя,
-                  университет, контакт и мотивация.
+                  {t(
+                    "При регистрации сохраняются имя, email, защищённый хеш пароля и данные профиля. При подаче заявки сохраняются имя, университет, контакт и мотивация.",
+                  )}
                 </p>
                 <p>
-                  Заявку видите вы и организация, которая создала событие.
-                  Подтверждённый состав с именем и контактом доступен только
-                  этой организации. Заявки не публикуются в каталоге.
+                  {t(
+                    "Заявку видите вы и организация, которая создала событие. Подтверждённый состав с именем и контактом доступен только этой организации. Заявки не публикуются в каталоге.",
+                  )}
                 </p>
                 <p>
-                  Данные хранятся в локальной базе платформы и используются для
-                  организации участия. Для удаления аккаунта и данных обратитесь
-                  к администратору развёрнутого экземпляра. Контакт оператора и
-                  юридические основания обработки должны быть определены до
-                  публичного запуска.
+                  {t(
+                    "Данные хранятся в локальной базе платформы и используются для организации участия. Для удаления аккаунта и данных обратитесь к администратору развёрнутого экземпляра. Контакт оператора и юридические основания обработки должны быть определены до публичного запуска.",
+                  )}
                 </p>
               </>
             ) : (
               <>
                 <p>
-                  Kömek — пилотная платформа волонтёрских проектов Алматы.
-                  Регистрация и участие бесплатны. Организатор отвечает за
-                  достоверность описания, безопасность события и обработку
-                  заявок.
+                  {t(
+                    "Kömek — пилотная платформа волонтёрских проектов Алматы. Регистрация и участие бесплатны. Организатор отвечает за достоверность описания, безопасность события и обработку заявок.",
+                  )}
                 </p>
                 <p>
-                  Отправка заявки не гарантирует участие. После одобрения
-                  необходимо подтвердить, что вы придёте. Все даты отображаются
-                  по времени Алматы.
+                  {t(
+                    "Отправка заявки не гарантирует участие. После одобрения необходимо подтвердить, что вы придёте. Все даты отображаются по времени Алматы.",
+                  )}
                 </p>
                 <p>
-                  Решения появляются в личном кабинете. Дополнительное сообщение
-                  в Telegram или по email отправляется организатором вручную.
-                  Демо-аккаунты предназначены только для знакомства: не
-                  добавляйте в них личные данные.
+                  {t(
+                    "Решения появляются в личном кабинете. Дополнительное сообщение в Telegram или по email отправляется организатором вручную. Демо-аккаунты предназначены только для знакомства: не добавляйте в них личные данные.",
+                  )}
                 </p>
               </>
             )}
@@ -1849,8 +1961,11 @@ function App() {
       {toast && (
         <div className="toast" role="status">
           <CircleCheck size={20} />
-          <span>{toast}</span>
-          <button aria-label="Закрыть уведомление" onClick={() => setToast("")}>
+          <span>{t(toast.source, toast.params)}</span>
+          <button
+            aria-label={t("Закрыть уведомление")}
+            onClick={() => setToast(null)}
+          >
             <X size={17} />
           </button>
         </div>
@@ -1869,7 +1984,7 @@ function EventCard({
   toggleSaved: () => void;
   onClick: () => void;
 }) {
-  const cat = CATEGORIES.find((c) => c.id === e.category)!;
+  const cat = getCategories().find((c) => c.id === e.category)!;
   return (
     <article className="event-card">
       <div className="card-image">
@@ -1888,7 +2003,7 @@ function EventCard({
         <button
           className={"save-button " + (saved ? "is-saved" : "")}
           onClick={toggleSaved}
-          aria-label={saved ? "Убрать из избранного" : "В избранное"}
+          aria-label={saved ? t("Убрать из избранного") : t("В избранное")}
           aria-pressed={saved}
         >
           <Heart size={18} fill={saved ? "currentColor" : "none"} />
@@ -1917,20 +2032,21 @@ function EventCard({
           </span>
           <span>
             <Clock3 size={14} />
-            {e.hours} ч.
+            {e.hours} {t(" ч.")}
           </span>
         </div>
         <div className="card-bottom">
           <span className={open(e) ? "spots" : "closed-spots"}>
             <span className="live-dot" />
             {past(e)
-              ? "Проект завершён"
+              ? t("Проект завершён")
               : open(e)
-                ? `${e.capacity - e.occupied} свободных мест`
-                : "Приём закрыт"}
+                ? t("{0} свободных мест", [e.capacity - e.occupied])
+                : t("Приём закрыт")}
           </span>
           <button onClick={onClick}>
-            {past(e) ? "Посмотреть" : "Подробнее"} <ArrowUpRight size={16} />
+            {past(e) ? t("Посмотреть") : t("Подробнее")}{" "}
+            <ArrowUpRight size={16} />
           </button>
         </div>
       </div>
@@ -1998,6 +2114,8 @@ function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
     document.body.style.overflow = "hidden";
@@ -2007,7 +2125,7 @@ function Modal({
       );
     focusable()?.[0]?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") close.current();
       if (e.key === "Tab") {
         const nodes = focusable();
         if (!nodes?.length) return;
@@ -2043,11 +2161,14 @@ function Modal({
       >
         <button
           className="modal-close icon-button"
-          aria-label="Закрыть"
+          aria-label={t("Закрыть")}
           onClick={onClose}
         >
           <X size={21} />
         </button>
+        <div className="modal-language">
+          <LanguageSwitcher />
+        </div>
         <span className="modal-brand">
           <Heart size={23} fill="currentColor" />
         </span>
@@ -2083,9 +2204,29 @@ function Form({
   return (
     <form
       className="form"
+      noValidate
       onSubmit={async (e) => {
         e.preventDefault();
         if (busy) return;
+        const invalid = Array.from(
+          e.currentTarget.querySelectorAll<
+            HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+          >("input,textarea,select"),
+        ).find((field) => !field.validity.valid);
+        if (invalid) {
+          setError(
+            invalid.validity.valueMissing
+              ? invalid instanceof HTMLInputElement &&
+                invalid.type === "checkbox"
+                ? "Необходимо согласие на обработку данных."
+                : "Заполните обязательное поле."
+              : invalid instanceof HTMLInputElement && invalid.type === "email"
+                ? "Укажите корректный email."
+                : "Проверьте значение в этом поле.",
+          );
+          invalid.focus();
+          return;
+        }
         const fd = new FormData(e.currentTarget);
         const values: Record<string, FormDataEntryValue | boolean> =
           Object.fromEntries(fd.entries());
@@ -2105,12 +2246,12 @@ function Form({
       {error && (
         <div className="form-error" role="alert">
           <CircleAlert size={18} />
-          {error}
+          {t(error)}
         </div>
       )}
       <button className="button dark full" disabled={busy} type="submit">
         {busy ? <LoaderCircle className="spin" size={17} /> : null}
-        {busy ? "Подождите…" : button}
+        {busy ? t("Подождите…") : button}
         {!busy && <ArrowUpRight size={17} />}
       </button>
     </form>
@@ -2138,13 +2279,13 @@ function AuthForm({
           className={role === "volunteer" ? "selected" : ""}
           onClick={() => setRole("volunteer")}
         >
-          <Heart size={16} /> Я волонтёр
+          <Heart size={16} /> {t(" Я волонтёр")}
         </button>
         <button
           className={role === "organization" ? "selected" : ""}
           onClick={() => setRole("organization")}
         >
-          <Building2 size={16} /> Организация
+          <Building2 size={16} /> {t(" Организация")}
         </button>
       </div>
       <Form
@@ -2156,18 +2297,20 @@ function AuthForm({
           });
           onSuccess(r.user);
         }}
-        button={mode === "login" ? "Войти в аккаунт" : "Создать аккаунт"}
+        button={mode === "login" ? t("Войти в аккаунт") : t("Создать аккаунт")}
       >
         {mode === "register" && (
           <Field
             label={
-              role === "organization" ? "Название организации" : "Имя и фамилия"
+              role === "organization"
+                ? t("Название организации")
+                : t("Имя и фамилия")
             }
             name="name"
             placeholder={
               role === "organization"
-                ? "Название вашей команды"
-                : "Как к тебе обращаться?"
+                ? t("Название вашей команды")
+                : t("Как к тебе обращаться?")
             }
             required
             minLength={2}
@@ -2176,7 +2319,7 @@ function AuthForm({
           />
         )}
         <Field
-          label="Email"
+          label={t("Email")}
           name="email"
           type="email"
           placeholder="you@example.com"
@@ -2184,10 +2327,10 @@ function AuthForm({
           autoComplete="email"
         />
         <Field
-          label="Пароль"
+          label={t("Пароль")}
           name="password"
           type="password"
-          placeholder="Не менее 8 символов"
+          placeholder={t("Не менее 8 символов")}
           required
           minLength={mode === "register" ? 8 : 1}
           maxLength={128}
@@ -2196,32 +2339,32 @@ function AuthForm({
         {mode === "register" && (
           <>
             <Field
-              label="Telegram или email для связи"
+              label={t("Telegram или email для связи")}
               name="contact"
-              placeholder="@username или email"
+              placeholder={t("@username или email")}
             />
             <label className="consent">
               <input name="consent" type="checkbox" required />
               <span>
-                Соглашаюсь на обработку персональных данных для регистрации и
-                участия в волонтёрских проектах. Мои заявки будут доступны
-                организаторам выбранных событий.
+                {t(
+                  "Соглашаюсь на обработку персональных данных для регистрации и участия в волонтёрских проектах. Мои заявки будут доступны организаторам выбранных событий.",
+                )}
               </span>
             </label>
           </>
         )}
       </Form>
       <p className="auth-switch">
-        {mode === "login" ? "Ещё нет аккаунта?" : "Уже с нами?"}{" "}
+        {mode === "login" ? t("Ещё нет аккаунта?") : t("Уже с нами?")}{" "}
         <button
           onClick={() => setMode(mode === "login" ? "register" : "login")}
         >
-          {mode === "login" ? "Зарегистрироваться" : "Войти"}
+          {mode === "login" ? t("Зарегистрироваться") : t("Войти")}
         </button>
       </p>
       <div className="demo-box">
-        <span>ПОСМОТРЕТЬ, КАК ВСЁ УСТРОЕНО</span>
-        <p>Демо-аккаунты с примерами событий и заявок.</p>
+        <span>{t("ПОСМОТРЕТЬ, КАК ВСЁ УСТРОЕНО")}</span>
+        <p>{t("Демо-аккаунты с примерами событий и заявок.")}</p>
         <div>
           <button
             disabled={demoBusy}
@@ -2240,7 +2383,8 @@ function AuthForm({
               }
             }}
           >
-            <UserRound size={15} /> Волонтёр <ArrowUpRight size={14} />
+            <UserRound size={15} /> {t(" Волонтёр ")}
+            <ArrowUpRight size={14} />
           </button>
           <button
             disabled={demoBusy}
@@ -2259,10 +2403,11 @@ function AuthForm({
               }
             }}
           >
-            <Building2 size={15} /> Организация <ArrowUpRight size={14} />
+            <Building2 size={15} /> {t(" Организация ")}
+            <ArrowUpRight size={14} />
           </button>
         </div>
-        {demoError && <p className="form-error">{demoError}</p>}
+        {demoError && <p className="form-error">{t(demoError)}</p>}
       </div>
     </>
   );
@@ -2275,9 +2420,9 @@ function ApplyForm({
   onSubmit: (v: Record<string, FormDataEntryValue | boolean>) => Promise<void>;
 }) {
   return (
-    <Form onSubmit={onSubmit} button="Отправить заявку">
+    <Form onSubmit={onSubmit} button={t("Отправить заявку")}>
       <Field
-        label="Имя и фамилия"
+        label={t("Имя и фамилия")}
         name="full_name"
         defaultValue={user.name}
         required
@@ -2285,27 +2430,27 @@ function ApplyForm({
         maxLength={200}
       />
       <Field
-        label="Университет / место работы"
+        label={t("Университет / место работы")}
         name="university"
         defaultValue={user.university}
-        placeholder="Где учишься или работаешь?"
+        placeholder={t("Где учишься или работаешь?")}
         required
         minLength={2}
         maxLength={200}
       />
       <Field
-        label="Telegram или email"
+        label={t("Telegram или email")}
         name="contact"
         defaultValue={user.contact || user.email}
-        placeholder="@username или email"
+        placeholder={t("@username или email")}
         required
       />
       <label className="field">
-        Почему хочешь присоединиться?{" "}
-        <span className="optional">Необязательно</span>
+        {t("Почему хочешь присоединиться?")}{" "}
+        <span className="optional">{t("Необязательно")}</span>
         <textarea
           name="motivation"
-          placeholder="Расскажи о себе и своём желании помочь"
+          placeholder={t("Расскажи о себе и своём желании помочь")}
           rows={3}
           maxLength={2000}
         />
@@ -2313,13 +2458,16 @@ function ApplyForm({
       <label className="consent">
         <input type="checkbox" name="consent" required />
         <span>
-          Согласен(-на) на передачу имени, университета и контакта организатору
-          события для рассмотрения заявки и координации участия.
+          {t(
+            "Согласен(-на) на передачу имени, университета и контакта организатору события для рассмотрения заявки и координации участия.",
+          )}
         </span>
       </label>
       <div className="inline-info">
         <ShieldCheck size={18} />
-        <span>Твои контакты увидит только организатор этого события.</span>
+        <span>
+          {t("Твои контакты увидит только организатор этого события.")}
+        </span>
       </div>
     </Form>
   );
@@ -2350,19 +2498,19 @@ function EventForm({
           capacity: Number(v.capacity),
         })
       }
-      button={event ? "Сохранить событие" : "Опубликовать событие"}
+      button={event ? t("Сохранить событие") : t("Опубликовать событие")}
     >
       <Field
-        label="Название проекта"
+        label={t("Название проекта")}
         name="title"
         defaultValue={event?.title}
         required
         minLength={4}
         maxLength={150}
-        placeholder="Какое доброе дело будем делать?"
+        placeholder={t("Какое доброе дело будем делать?")}
       />
       <label className="field">
-        Описание
+        {t("Описание")}
         <textarea
           name="description"
           defaultValue={event?.description}
@@ -2370,39 +2518,43 @@ function EventForm({
           required
           minLength={20}
           maxLength={10000}
-          placeholder="Расскажите о цели проекта, задачах волонтёров и о том, что их ждёт"
+          placeholder={t(
+            "Расскажите о цели проекта, задачах волонтёров и о том, что их ждёт",
+          )}
         />
       </label>
       <div className="form-grid">
         <label className="field">
-          Направление
+          {t("Направление")}
           <select name="category" defaultValue={event?.category || "eco"}>
-            {CATEGORIES.slice(1).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
+            {getCategories()
+              .slice(1)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
           </select>
         </label>
         <Field
-          label="Место проведения"
+          label={t("Место проведения")}
           name="location"
           defaultValue={event?.location}
           required
           minLength={3}
-          placeholder="Адрес, Алматы"
+          placeholder={t("Адрес, Алматы")}
         />
       </div>
       <div className="form-grid">
         <Field
-          label="Дата и время начала"
+          label={t("Дата и время начала")}
           name="starts_at"
           type="datetime-local"
           defaultValue={localDate(event?.starts_at)}
           required
         />
         <Field
-          label="Дедлайн подачи заявок"
+          label={t("Дедлайн подачи заявок")}
           name="deadline"
           type="datetime-local"
           defaultValue={localDate(event?.deadline)}
@@ -2410,12 +2562,13 @@ function EventForm({
         />
       </div>
       <p className="field-hint">
-        В форме используется часовой пояс вашего устройства. На сайте время
-        отображается по Алматы.
+        {t(
+          "В форме используется часовой пояс вашего устройства. На сайте время отображается по Алматы.",
+        )}
       </p>
       <div className="form-grid">
         <Field
-          label="Продолжительность, часов"
+          label={t("Продолжительность, часов")}
           name="hours"
           type="number"
           defaultValue={event?.hours || 3}
@@ -2425,7 +2578,7 @@ function EventForm({
           step="0.5"
         />
         <Field
-          label="Количество участников"
+          label={t("Количество участников")}
           name="capacity"
           type="number"
           defaultValue={event?.capacity || 20}
@@ -2435,27 +2588,28 @@ function EventForm({
         />
       </div>
       <Field
-        label="Ссылка на фотографию (HTTPS)"
+        label={t("Ссылка на фотографию (HTTPS)")}
         name="image"
         defaultValue={event?.image.startsWith("https:") ? event.image : ""}
         type="url"
-        placeholder="https://… — или оставьте для обложки по умолчанию"
+        placeholder={t("https://… — или оставьте для обложки по умолчанию")}
       />
       <label className="field">
-        Требования и что взять с собой
+        {t("Требования и что взять с собой")}
         <textarea
           name="requirements"
           rows={2}
           defaultValue={event?.requirements}
           maxLength={2000}
-          placeholder="Возраст, навыки, одежда и другие важные детали"
+          placeholder={t("Возраст, навыки, одежда и другие важные детали")}
         />
       </label>
       <div className="inline-info">
         <CircleCheck size={18} />
         <span>
-          Нажимая кнопку, вы подтверждаете достоверность информации и готовность
-          провести событие.
+          {t(
+            "Нажимая кнопку, вы подтверждаете достоверность информации и готовность провести событие.",
+          )}
         </span>
       </div>
     </Form>
@@ -2477,8 +2631,14 @@ function Applicant({
   const elapsed = (Date.now() - Date.parse(a.created_at)) / 3600000;
   const template =
     a.status === "declined"
-      ? `Здравствуйте, ${a.full_name}! К сожалению, заявка на «${a.title}» отклонена. Спасибо за желание помочь. Вы можете выбрать другое событие на Kömek.`
-      : `Здравствуйте, ${a.full_name}! Ваша заявка на «${a.title}» одобрена. Пожалуйста, подтвердите участие в личном кабинете Kömek. Начало: ${stamp(a.starts_at)}.`;
+      ? t(
+          "Здравствуйте, {0}! К сожалению, заявка на «{1}» отклонена. Спасибо за желание помочь. Вы можете выбрать другое событие на Kömek.",
+          [a.full_name, a.title],
+        )
+      : t(
+          "Здравствуйте, {0}! Ваша заявка на «{1}» одобрена. Пожалуйста, подтвердите участие в личном кабинете Kömek. Начало: {2}.",
+          [a.full_name, a.title, stamp(a.starts_at)],
+        );
   return (
     <article className="applicant">
       <div className="applicant-top">
@@ -2489,16 +2649,29 @@ function Applicant({
             {a.university} · {a.contact}
           </p>
         </div>
-        <span className={"status " + a.status}>{STATUSES[a.status]}</span>
+        <span className={"status " + a.status}>{getStatuses()[a.status]}</span>
       </div>
       <p className="application-event">{a.title}</p>
       {a.motivation && <p className="applicant-motivation">«{a.motivation}»</p>}
       <div className="application-times">
-        <span>Подана: {stamp(a.created_at)}</span>
-        {a.decision_at && <span>Решение: {stamp(a.decision_at)}</span>}
-        {a.confirmed_at && <span>Подтверждено: {stamp(a.confirmed_at)}</span>}
+        <span>
+          {t("Подана: ")}
+          {stamp(a.created_at)}
+        </span>
+        {a.decision_at && (
+          <span>
+            {t("Решение: ")}
+            {stamp(a.decision_at)}
+          </span>
+        )}
+        {a.confirmed_at && (
+          <span>
+            {t("Подтверждено: ")}
+            {stamp(a.confirmed_at)}
+          </span>
+        )}
         {a.status === "pending" && elapsed > 44 && (
-          <span className="warning">Ожидает решения более 44 часов</span>
+          <span className="warning">{t("Ожидает решения более 44 часов")}</span>
         )}
       </div>
       {a.status === "pending" ? (
@@ -2512,7 +2685,7 @@ function Applicant({
               setBusy(false);
             }}
           >
-            <Check size={16} /> Принять
+            <Check size={16} /> {t(" Принять")}
           </button>
           <button
             disabled={busy}
@@ -2523,7 +2696,7 @@ function Applicant({
               setBusy(false);
             }}
           >
-            <X size={16} /> Отказать
+            <X size={16} /> {t(" Отказать")}
           </button>
         </div>
       ) : (
@@ -2533,12 +2706,14 @@ function Applicant({
             onClick={() => setExpanded(!expanded)}
           >
             <Mail size={15} />
-            {expanded ? "Скрыть шаблон" : "Сообщение для Telegram / email"}{" "}
+            {expanded
+              ? t("Скрыть шаблон")
+              : t("Сообщение для Telegram / email")}{" "}
             <ChevronDown size={14} />
           </button>
           {a.notice_sent_at ? (
             <span className="sent-label">
-              <CheckCheck size={14} /> Отправка отмечена:{" "}
+              <CheckCheck size={14} /> {t(" Отправка отмечена:")}{" "}
               {stamp(a.notice_sent_at)}
             </span>
           ) : (
@@ -2552,8 +2727,8 @@ function Applicant({
             >
               {a.decision_at &&
               Date.now() - Date.parse(a.decision_at) > 4 * 3600000
-                ? "Более 4 часов после решения — отправьте сообщение"
-                : "Внешнее сообщение ещё не отмечено"}
+                ? t("Более 4 часов после решения — отправьте сообщение")
+                : t("Внешнее сообщение ещё не отмечено")}
             </span>
           )}
         </div>
@@ -2571,7 +2746,7 @@ function Applicant({
                   .catch(() => notify("Выделите и скопируйте текст сообщения."))
               }
             >
-              <Copy size={14} /> Скопировать
+              <Copy size={14} /> {t(" Скопировать")}
             </button>
             {!a.notice_sent_at && (
               <button
@@ -2583,13 +2758,14 @@ function Applicant({
                   setBusy(false);
                 }}
               >
-                <Check size={14} /> Я отправил(а) сообщение
+                <Check size={14} /> {t(" Я отправил(а) сообщение")}
               </button>
             )}
           </div>
           <small>
-            Отправьте сообщение вручную по указанному контакту и отметьте
-            отправку. Это сохраняет время в журнале.
+            {t(
+              "Отправьте сообщение вручную по указанному контакту и отметьте отправку. Это сохраняет время в журнале.",
+            )}
           </small>
         </div>
       )}
@@ -2606,19 +2782,20 @@ function Quality({ applications }: { applications: Application[] }) {
     <div className="quality-panel">
       <span>
         <Clock3 size={17} />
-        <strong>Своевременные ответы</strong>
+        <strong>{t("Своевременные ответы")}</strong>
       </span>
       <p>
-        Внешние сообщения в течение 48 ч.:{" "}
+        {t("Внешние сообщения в течение 48 ч.:")}{" "}
         <strong>
           {applications.length
             ? Math.round((timely.length / applications.length) * 100) + "%"
             : "—"}
         </strong>
-        <span> · Цель: 80%</span>
+        <span> {t(" · Цель: 80%")}</span>
       </p>
       <p>
-        Решение — до 44 ч. <span>·</span> Сообщение — до 4 ч. после решения
+        {t("Решение — до 44 ч. ")}
+        <span>·</span> {t(" Сообщение — до 4 ч. после решения")}
       </p>
     </div>
   );
@@ -2635,10 +2812,10 @@ function Roster({
       <table>
         <thead>
           <tr>
-            <th>Участник</th>
-            <th>Контакт</th>
-            <th>Событие</th>
-            <th>{unconfirmed ? "Статус" : "Подтверждение"}</th>
+            <th>{t("Участник")}</th>
+            <th>{t("Контакт")}</th>
+            <th>{t("Событие")}</th>
+            <th>{unconfirmed ? t("Статус") : t("Подтверждение")}</th>
           </tr>
         </thead>
         <tbody>
@@ -2652,7 +2829,9 @@ function Roster({
               <td>{a.title}</td>
               <td>
                 {unconfirmed ? (
-                  <span className="status accepted">Не подтверждено</span>
+                  <span className="status accepted">
+                    {t("Не подтверждено")}
+                  </span>
                 ) : a.confirmed_at ? (
                   stamp(a.confirmed_at)
                 ) : (
@@ -2660,7 +2839,9 @@ function Roster({
                 )}
                 {unconfirmed &&
                   Date.parse(a.starts_at) - Date.now() < 86400000 && (
-                    <small className="warning">До события менее 24 часов</small>
+                    <small className="warning">
+                      {t("До события менее 24 часов")}
+                    </small>
                   )}
               </td>
             </tr>
@@ -2673,13 +2854,15 @@ function Roster({
       icon={Users}
       title={
         unconfirmed
-          ? "Все одобренные участники подтвердили участие"
-          : "Подтверждённых участников пока нет"
+          ? t("Все одобренные участники подтвердили участие")
+          : t("Подтверждённых участников пока нет")
       }
       text={
         unconfirmed
-          ? "Неподтверждённых заявок нет."
-          : "После одобрения волонтёр должен подтвердить участие в своём кабинете."
+          ? t("Неподтверждённых заявок нет.")
+          : t(
+              "После одобрения волонтёр должен подтвердить участие в своём кабинете.",
+            )
       }
     />
   );

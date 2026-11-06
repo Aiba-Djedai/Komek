@@ -1,0 +1,147 @@
+.language-switcher {
+  position: relative;
+  flex-shrink: 0;
+}
+.language-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.language-options {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 195px;
+  background: #fff;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px #234e3c20;
+}
+.language-options > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: left;
+}
+.language-options > button:hover,
+.language-options > button[aria-checked="true"] {
+  background: #edf3e3;
+}
+.language-options > button > svg {
+  margin-left: auto;
+}
+.language-code {
+  font-size: 13px;
+  min-width: 24px;
+  color: #586751;
+}
+.header .mobile-nav-login {
+  display: none;
+}
+.modal-language {
+  position: absolute;
+  top: 14px;
+  right: 54px;
+}
+@media (max-width: 1050px) {
+  .header .nav-links {
+    display: none;
+  }
+  .header .nav-links.visible {
+    display: flex;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--cream);
+    height: auto;
+    padding: 20px;
+    border-bottom: 1px solid var(--line);
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 15px 25px #234e3c10;
+  }
+  .header .nav-links button {
+    font-size: 15px;
+    min-height: 44px;
+    padding: 10px 0;
+  }
+  .header .nav-links button.active::after {
+    display: none;
+  }
+  .header .mobile-menu {
+    display: flex;
+    width: 29px;
+  }
+  .header .nav-links.visible .mobile-nav-login {
+    display: flex;
+  }
+}
+@media (max-width: 720px) {
+  .dashboard-tabs {
+    margin-right: 0;
+    padding-right: 0;
+  }
+  .header .nav-links.visible .mobile-nav-login {
+    display: flex;
+  }
+  .header .nav {
+    gap: 8px;
+  }
+  .header .nav-right,
+  .signed-in-header .nav-right {
+    gap: 6px;
+  }
+  .language-trigger {
+    gap: 4px;
+    padding: 4px;
+    font-size: 14px;
+  }
+  .language-trigger > svg:first-child {
+    width: 17px;
+  }
+  .language-trigger > svg:last-child {
+    width: 12px;
+  }
+  .header .account-button .avatar {
+    display: none;
+  }
+  .header .login-btn {
+    display: none;
+  }
+}
+@media (max-width: 380px) {
+  .header .nav > .brand {
+    font-size: 23px;
+  }
+  .header .brand-mark {
+    width: 22px;
+    margin-right: 4px;
+  }
+  .header .account-copy > span {
+    display: none;
+  }
+  .header .nav-right {
+    gap: 3px;
+  }
+  .header .nav {
+    gap: 4px;
+  }
+  .language-trigger > svg:last-child {
+    display: none;
+  }
+}
