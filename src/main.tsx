@@ -1,21 +1,17 @@
 import { getLanguage, notificationText, t, useLanguage } from "./lib/i18n";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowUpRight,
   ArrowRight,
   Heart,
   Leaf,
-  PawPrint,
   Users,
-  GraduationCap,
-  Sparkles,
   MapPin,
   CalendarDays,
   Clock3,
   Search,
-  SlidersHorizontal,
   X,
   ChevronDown,
   Check,
@@ -35,7 +31,6 @@ import {
   LoaderCircle,
   ShieldCheck,
   Mountain,
-  Bookmark,
 } from "lucide-react";
 import "./styles.css";
 import type { User, Event, Application } from "./types";
@@ -50,6 +45,10 @@ import { OrganizationHome, VolunteerHome } from "./components/Home";
 import { MyProjects } from "./components/MyProjects";
 import { groupParticipations } from "./lib/participation";
 import "./components/LanguageSwitcher.css";
+import { Catalog } from "./components/Catalog";
+import { defaultCatalogFilters } from "./lib/catalog";
+import { getCategories } from "./lib/categories";
+import { categoryDefinitions, suggestedCities } from "../shared/catalog.ts";
 
 type Notice = {
   id: number;
@@ -58,14 +57,6 @@ type Notice = {
   read_at: string | null;
   source_message?: string;
 };
-const getCategories = () => [
-  { id: "all", label: t("Все направления"), icon: Sparkles },
-  { id: "eco", label: t("Экология"), icon: Leaf },
-  { id: "social", label: t("Социальная помощь"), icon: Heart },
-  { id: "animals", label: t("Помощь животным"), icon: PawPrint },
-  { id: "events", label: t("События"), icon: Users },
-  { id: "education", label: t("Образование"), icon: GraduationCap },
-];
 const getStatuses = (): Record<string, string> => ({
   pending: t("На рассмотрении"),
   accepted: t("Ожидает подтверждения"),
@@ -136,10 +127,7 @@ function App() {
   } | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
-  const [category, setCategory] = useState("all");
-  const [period, setPeriod] = useState("active");
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("soon");
+  const [filters, setFilters] = useState(defaultCatalogFilters);
   const [dashTab, setDashTab] = useState("events");
   const [selectedEvent, setSelectedEvent] = useState("all");
   const [applicationStatus, setApplicationStatus] = useState("all");
@@ -274,28 +262,6 @@ function App() {
   };
   const ownedEvents = events.filter((e) => e.organization_id === user?.id);
   const unread = notices.filter((n) => !n.read_at).length;
-  const filtered = events
-    .filter(
-      (e) =>
-        (category === "all" || e.category === category) &&
-        (!search ||
-          `${e.title} ${e.description} ${e.location} ${e.organization}`
-            .toLowerCase()
-            .includes(search.toLowerCase())) &&
-        (period === "past"
-          ? past(e)
-          : period === "future"
-            ? !past(e)
-            : open(e)) &&
-        (!favoritesOnly || saved.includes(e.id)),
-    )
-    .sort((a, b) =>
-      sort === "soon"
-        ? Date.parse(a.starts_at) - Date.parse(b.starts_at)
-        : sort === "spots"
-          ? b.capacity - b.occupied - (a.capacity - a.occupied)
-          : b.id - a.id,
-    );
   const currentEvent = route.startsWith("/events/")
     ? events.find((e) => e.id === Number(route.split("/")[2]))
     : null;
@@ -668,7 +634,7 @@ function App() {
                     <p>{t("открытых проектов")}</p>
                   </div>
                   <div>
-                    <strong>5</strong>
+                    <strong>{categoryDefinitions.length}</strong>
                     <p>{t("направлений помощи")}</p>
                   </div>
                   <div>
@@ -686,141 +652,20 @@ function App() {
                 </section>
               </>
             )}
-            <section id="projects" className="projects container">
-              <div className="section-heading">
-                <div>
-                  <div className="eyebrow">
-                    {t("НАЙДИ ТО, ЧТО ОТКЛИКАЕТСЯ")}
-                  </div>
-                  <h2>
-                    {t("Добрые дела ждут тебя")}
-                    <span className="green-dot">.</span>
-                  </h2>
-                  <p>
-                    {t(
-                      "Выбирай проект по душе. А мы поможем сделать первый шаг.",
-                    )}
-                  </p>
-                </div>
-                <button
-                  className={
-                    "saved-toggle " + (favoritesOnly ? "selected" : "")
-                  }
-                  onClick={() => setFavoritesOnly(!favoritesOnly)}
-                >
-                  <Bookmark
-                    size={17}
-                    fill={favoritesOnly ? "currentColor" : "none"}
-                  />{" "}
-                  {t("Избранное ")}
-                  {saved.length > 0 && <span>{saved.length}</span>}
-                </button>
-              </div>
-              <div className="category-tabs" aria-label={t("Направления")}>
-                {getCategories().map((c) => (
-                  <button
-                    key={c.id}
-                    className={category === c.id ? "selected" : ""}
-                    onClick={() => setCategory(c.id)}
-                  >
-                    <c.icon size={17} />
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-              <div className="catalog-toolbar">
-                <div className="period-tabs">
-                  {[
-                    ["active", t("Актуальные")],
-                    ["future", t("Предстоящие")],
-                    ["past", t("Завершённые")],
-                  ].map(([id, label]) => (
-                    <button
-                      key={id}
-                      className={period === id ? "selected" : ""}
-                      onClick={() => setPeriod(id)}
-                    >
-                      {label}
-                      {id === "active" && (
-                        <span>{events.filter(open).length}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                <div className="search-sort">
-                  <label className="search">
-                    <Search size={17} />
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder={t("Название, место или организация")}
-                      aria-label={t("Поиск проектов")}
-                    />
-                    {search && (
-                      <button
-                        onClick={() => setSearch("")}
-                        aria-label={t("Очистить поиск")}
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </label>
-                  <label className="sort">
-                    <SlidersHorizontal size={16} />
-                    <select
-                      aria-label={t("Сортировка")}
-                      value={sort}
-                      onChange={(e) => setSort(e.target.value)}
-                    >
-                      <option value="soon">{t("Ближайшие")}</option>
-                      <option value="new">{t("Сначала новые")}</option>
-                      <option value="spots">{t("Больше мест")}</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-              <div className="results-count">
-                {favoritesOnly ? t("Избранные проекты") : t("Проекты в Алматы")}{" "}
-                <span>{filtered.length}</span>
-                <span className="timezone-note">
-                  {t("Время указано по Алматы")}
-                </span>
-              </div>
-              {filtered.length ? (
-                <div className="event-grid">
-                  {filtered.map((e) => (
-                    <EventCard
-                      key={e.id}
-                      event={e}
-                      saved={saved.includes(e.id)}
-                      toggleSaved={() => toggleSaved(e.id)}
-                      onClick={() => navigate("/events/" + e.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <Empty
-                  icon={Search}
-                  title={t("Пока ничего не нашлось")}
-                  text={t(
-                    "Попробуйте другое направление, период или поисковый запрос.",
-                  )}
-                  action={() => {
-                    setCategory("all");
-                    setSearch("");
-                    setPeriod("active");
-                    setFavoritesOnly(false);
-                  }}
-                  button={t("Сбросить фильтры")}
-                />
-              )}
-              <div className="catalog-bottom">
-                <span>
-                  {t("Даже несколько часов могут изменить чей-то день.")}
-                </span>
-                <Heart size={17} />
-              </div>
-            </section>
+            <Catalog
+              events={events}
+              filters={filters}
+              onChange={setFilters}
+              favoritesOnly={favoritesOnly}
+              onToggleFavorites={() => setFavoritesOnly(!favoritesOnly)}
+              saved={saved}
+              onSave={toggleSaved}
+              onView={(event) => navigate("/events/" + event.id)}
+              onReset={() => {
+                setFilters(defaultCatalogFilters);
+                setFavoritesOnly(false);
+              }}
+            />
             {!user ? (
               <>
                 <section className="organization-cta container">
@@ -985,7 +830,9 @@ function App() {
                   <Fact
                     icon={MapPin}
                     title={t("Где")}
-                    text={currentEvent.location}
+                    text={[t(currentEvent.city), currentEvent.location]
+                      .filter(Boolean)
+                      .join(" · ")}
                   />
                   <Fact
                     icon={Clock3}
@@ -1609,9 +1456,10 @@ function App() {
                 <button
                   className="button dark full"
                   onClick={() => {
-                    setSearch(e.organization);
-                    setPeriod("active");
-                    setCategory("all");
+                    setFilters({
+                      ...defaultCatalogFilters,
+                      search: e.organization,
+                    });
                     navigate(user?.role === "organization" ? "/projects" : "/");
                     setTimeout(
                       () =>
@@ -1971,86 +1819,6 @@ function App() {
         </div>
       )}
     </>
-  );
-}
-function EventCard({
-  event: e,
-  saved,
-  toggleSaved,
-  onClick,
-}: {
-  event: Event;
-  saved: boolean;
-  toggleSaved: () => void;
-  onClick: () => void;
-}) {
-  const cat = getCategories().find((c) => c.id === e.category)!;
-  return (
-    <article className="event-card">
-      <div className="card-image">
-        <button
-          className="image-link"
-          onClick={onClick}
-          tabIndex={-1}
-          aria-label={e.title}
-        >
-          <img src={e.image} alt={e.title} loading="lazy" />
-        </button>
-        <span className={"category-pill " + e.category}>
-          <cat.icon size={13} />
-          {cat.label}
-        </span>
-        <button
-          className={"save-button " + (saved ? "is-saved" : "")}
-          onClick={toggleSaved}
-          aria-label={saved ? t("Убрать из избранного") : t("В избранное")}
-          aria-pressed={saved}
-        >
-          <Heart size={18} fill={saved ? "currentColor" : "none"} />
-        </button>
-        <div className="date-badge">
-          <strong>{date(e.starts_at, { day: "2-digit" })}</strong>
-          <span>{date(e.starts_at, { month: "short" }).replace(".", "")}</span>
-        </div>
-      </div>
-      <div className="card-content">
-        <span className="org-label">
-          <span className="mini-logo">
-            <Leaf size={12} />
-          </span>
-          {e.organization}
-          <ShieldCheck size={13} />
-        </span>
-        <button className="card-title" onClick={onClick}>
-          <h3>{e.title}</h3>
-        </button>
-        <p className="card-description">{e.description}</p>
-        <div className="card-meta">
-          <span>
-            <MapPin size={14} />
-            {e.location}
-          </span>
-          <span>
-            <Clock3 size={14} />
-            {e.hours} {t(" ч.")}
-          </span>
-        </div>
-        <div className="card-bottom">
-          <span className={open(e) ? "spots" : "closed-spots"}>
-            <span className="live-dot" />
-            {past(e)
-              ? t("Проект завершён")
-              : open(e)
-                ? t("{0} свободных мест", [e.capacity - e.occupied])
-                : t("Приём закрыт")}
-          </span>
-          <button onClick={onClick}>
-            {past(e) ? t("Посмотреть") : t("Подробнее")}{" "}
-            <ArrowUpRight size={16} />
-          </button>
-        </div>
-      </div>
-    </article>
   );
 }
 function Fact({
@@ -2486,6 +2254,9 @@ function EventForm({
   event: Event | null;
   onSubmit: (v: unknown) => Promise<void>;
 }) {
+  const citiesId = useId();
+  const cityInputId = useId();
+  const categoryInputId = useId();
   return (
     <Form
       onSubmit={(v) =>
@@ -2524,9 +2295,13 @@ function EventForm({
         />
       </label>
       <div className="form-grid">
-        <label className="field">
-          {t("Направление")}
-          <select name="category" defaultValue={event?.category || "eco"}>
+        <div className="field">
+          <label htmlFor={categoryInputId}>{t("Направление")}</label>
+          <select
+            id={categoryInputId}
+            name="category"
+            defaultValue={event?.category || "eco"}
+          >
             {getCategories()
               .slice(1)
               .map((c) => (
@@ -2535,16 +2310,36 @@ function EventForm({
                 </option>
               ))}
           </select>
-        </label>
-        <Field
-          label={t("Место проведения")}
-          name="location"
-          defaultValue={event?.location}
-          required
-          minLength={3}
-          placeholder={t("Адрес, Алматы")}
-        />
+        </div>
+        <div className="field">
+          <label htmlFor={cityInputId}>{t("Город")}</label>
+          <input
+            id={cityInputId}
+            name="city"
+            list={citiesId}
+            defaultValue={t(event?.city ?? "Алматы")}
+            required
+            minLength={2}
+            maxLength={100}
+            placeholder={t("Выберите или введите город")}
+          />
+          <datalist id={citiesId}>
+            {suggestedCities.map((city) => (
+              <option value={t(city)} key={city}>
+                {t(city)}
+              </option>
+            ))}
+          </datalist>
+        </div>
       </div>
+      <Field
+        label={t("Место проведения")}
+        name="location"
+        defaultValue={event?.location}
+        required
+        minLength={3}
+        placeholder={t("Адрес или место встречи")}
+      />
       <div className="form-grid">
         <Field
           label={t("Дата и время начала")}

@@ -41,7 +41,7 @@ for (const language of ["kk", "en"] as const) {
     await expect(nav.getByRole("button").first()).toHaveText(
       language === "en" ? "Find a project" : "Жоба табу",
     );
-    await expect(page.locator(".category-tabs button").first()).toHaveText(
+    await expect(page.locator(".catalog-all-directions")).toHaveText(
       language === "en" ? "All categories" : "Барлық бағыттар",
     );
     await expect(

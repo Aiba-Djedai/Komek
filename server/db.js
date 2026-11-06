@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { inferCity } from "../shared/catalog.ts";
 export function hashPassword(password) {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(password, salt, 64).toString("hex")}`;
@@ -26,6 +27,24 @@ export function openDb(
  CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), application_id INTEGER REFERENCES applications(id), message TEXT NOT NULL, created_at TEXT NOT NULL, read_at TEXT);
  CREATE INDEX IF NOT EXISTS applications_event ON applications(event_id);
  CREATE INDEX IF NOT EXISTS notifications_user ON notifications(user_id);`);
+  if (
+    !db
+      .prepare("PRAGMA table_info(events)")
+      .all()
+      .some((column) => column.name === "city")
+  ) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.exec("ALTER TABLE events ADD COLUMN city TEXT NOT NULL DEFAULT ''");
+      const update = db.prepare("UPDATE events SET city=? WHERE id=?");
+      for (const event of db.prepare("SELECT id,location FROM events").all())
+        update.run(inferCity(event.location), event.id);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   return db;
 }
 export function seed(db) {
@@ -144,7 +163,7 @@ export function seed(db) {
     ],
   ];
   const insert = db.prepare(
-    "INSERT INTO events(organization_id,title,description,category,location,starts_at,deadline,hours,capacity,image,requirements,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO events(organization_id,title,description,category,location,starts_at,deadline,hours,capacity,image,requirements,created_at,city) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
   );
   for (const [
     title,
@@ -170,6 +189,7 @@ export function seed(db) {
       image,
       requirements,
       now,
+      "Алматы",
     );
   const app = db.prepare(
     "INSERT INTO applications(event_id,user_id,full_name,university,contact,motivation,consent,status,created_at,decision_at,confirmed_at) VALUES(?,?,?,?,?,?,1,?,?,?,?)",

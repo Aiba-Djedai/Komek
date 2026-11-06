@@ -1,0 +1,329 @@
+.project-catalog .section-heading {
+  align-items: center;
+  gap: 24px;
+}
+.project-catalog .section-heading h2 {
+  font-size: clamp(30px, 3.5vw, 44px);
+}
+.project-catalog .section-heading p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+.project-catalog .saved-toggle {
+  min-height: 46px;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+.catalog-layout {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 32px;
+}
+.catalog-filters {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  min-width: 0;
+}
+.catalog-filters > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
+  cursor: pointer;
+  padding: 20px;
+  font-size: 18px;
+  font-weight: 600;
+  min-height: 64px;
+}
+.catalog-filters > summary::-webkit-details-marker {
+  display: none;
+}
+.catalog-filters > summary > svg:last-child {
+  margin-left: auto;
+}
+.catalog-filters[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+.catalog-filters > summary:focus-visible {
+  outline: 3px solid #87a969;
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+.filter-count {
+  display: inline-flex;
+  min-width: 24px;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--green);
+  background: #edf3e3;
+  font-size: 13px;
+}
+.catalog-filter-fields {
+  padding: 0 20px 22px;
+}
+.catalog-city {
+  display: block;
+  font-weight: 600;
+  font-size: 16px;
+  margin: 4px 0 10px;
+}
+.catalog-filter-fields > select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #d3dccd;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text);
+  background: #fbfcf8;
+  font-size: 16px;
+}
+.catalog-directions,
+.catalog-order {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 24px 0 0;
+  padding: 18px 0 0;
+  min-width: 0;
+}
+.catalog-filter-fields legend {
+  padding: 0 8px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.catalog-filter-fields fieldset > p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #65715f;
+}
+.catalog-all-directions {
+  display: block;
+  margin-bottom: 10px;
+  padding: 8px 0;
+  min-height: 40px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 14px;
+  color: #3d6034;
+}
+.catalog-all-directions[aria-pressed="true"] {
+  font-weight: 600;
+  text-decoration: none;
+}
+.catalog-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 10px 0;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 44px;
+}
+.catalog-check > input {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  accent-color: var(--green);
+}
+.catalog-check > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.catalog-order .catalog-check {
+  padding-top: 0;
+}
+.catalog-reset {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 46px;
+  font-size: 15px;
+}
+.catalog-auto-hint {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #65715f;
+}
+.catalog-content {
+  min-width: 0;
+}
+.catalog-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 10px 14px;
+  border: 1px solid #d3dccd;
+  border-radius: 10px;
+  background: white;
+  color: #65715f;
+}
+.catalog-search > svg {
+  flex-shrink: 0;
+}
+.catalog-search > input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  color: var(--text);
+}
+.catalog-search > input:focus {
+  outline: none;
+}
+.catalog-search:focus-within {
+  outline: 2px solid #8ca477;
+  outline-offset: 2px;
+}
+.catalog-search > button {
+  display: flex;
+  padding: 6px;
+}
+.catalog-periods {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.catalog-periods > button {
+  min-height: 48px;
+  padding: 10px 14px;
+  border-bottom: 3px solid transparent;
+  font-size: 15px;
+  color: #65715f;
+}
+.catalog-periods > button[aria-pressed="true"] {
+  color: var(--green);
+  font-weight: 600;
+  border-bottom-color: var(--green);
+}
+.catalog-results-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 20px 0;
+}
+.catalog-results-heading > p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+}
+.catalog-results-heading strong {
+  background: #eaf0e2;
+  color: #3e5c32;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.catalog-results-heading > span {
+  font-size: 13px;
+  color: #65715f;
+}
+.project-catalog .event-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+.project-catalog .card-title h3 {
+  font-size: 22px;
+  line-height: 1.35;
+}
+.project-catalog .card-description {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.project-catalog .card-meta {
+  font-size: 14px;
+}
+.project-catalog .card-bottom > button,
+.project-catalog .spots,
+.project-catalog .closed-spots {
+  font-size: 13px;
+}
+.project-catalog .category-pill {
+  max-width: calc(100% - 75px);
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.project-catalog .category-pill > svg {
+  flex-shrink: 0;
+}
+.category-pill.sports {
+  background: #fff5d8;
+  color: #715315;
+}
+.category-pill.medical {
+  background: #fbe9ed;
+  color: #853b51;
+}
+.category-pill.rescue {
+  background: #e6eef9;
+  color: #355477;
+}
+@media (max-width: 1100px) and (min-width: 901px) {
+  .catalog-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 22px;
+  }
+  .project-catalog .event-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 900px) {
+  .catalog-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+  .catalog-filters > summary {
+    min-height: 58px;
+    padding: 16px 20px;
+  }
+}
+@media (max-width: 600px) {
+  .project-catalog .section-heading {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .project-catalog .section-heading h2 {
+    font-size: 32px;
+  }
+  .project-catalog .section-heading p {
+    font-size: 16px;
+  }
+  .catalog-layout {
+    margin-top: 24px;
+  }
+  .project-catalog .event-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .catalog-periods {
+    gap: 0;
+  }
+  .catalog-periods > button {
+    padding: 10px 8px;
+    font-size: 14px;
+  }
+  .catalog-search > input {
+    font-size: 14px;
+  }
+  .project-catalog .category-pill {
+    font-size: 12px;
+  }
+  .project-catalog .card-meta {
+    font-size: 14px;
+  }
+}

@@ -2,12 +2,17 @@ import express from "express";
 import { randomBytes, createHash } from "node:crypto";
 import { hashPassword, verifyPassword } from "./db.js";
 import {
+  categoryDefinitions,
+  inferCity,
+  normalizeCity,
+} from "../shared/catalog.ts";
+import {
   isLanguage,
   requestLanguage,
   translate,
   translateNotification,
 } from "../shared/translate.ts";
-const categories = ["eco", "social", "animals", "events", "education"];
+const categories = categoryDefinitions.map((category) => category.id);
 const publicUser = ({ password, ...u }) => u;
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const iso = () => new Date().toISOString();
@@ -219,7 +224,7 @@ export function createApp(db) {
   app.get("/api/events/:id", (req, res) =>
     res.json({ event: eventById(req.params.id) }),
   );
-  function eventInput(body) {
+  function eventInput(body, existing) {
     const fields = [
       "title",
       "description",
@@ -231,6 +236,7 @@ export function createApp(db) {
       "capacity",
       "image",
       "requirements",
+      "city",
     ];
     const v = {};
     for (const f of fields) v[f] = body[f];
@@ -254,6 +260,15 @@ export function createApp(db) {
       v.location.length > 300
     )
       throw fail(400, "Укажите место проведения.");
+    if (v.city === undefined)
+      v.city = inferCity(v.location) || existing?.city || "";
+    if (
+      typeof v.city !== "string" ||
+      v.city.trim().length < 2 ||
+      v.city.trim().length > 100
+    )
+      throw fail(400, "Укажите город (2–100 символов).");
+    v.city = normalizeCity(v.city);
     if (
       !Number.isFinite(Date.parse(v.starts_at)) ||
       !Number.isFinite(Date.parse(v.deadline)) ||
@@ -291,7 +306,7 @@ export function createApp(db) {
     const values = eventInput(req.body);
     const result = db
       .prepare(
-        "INSERT INTO events(organization_id,title,description,category,location,starts_at,deadline,hours,capacity,image,requirements,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO events(organization_id,title,description,category,location,starts_at,deadline,hours,capacity,image,requirements,city,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
       )
       .run(req.user.id, ...values, iso());
     res.status(201).json({ event: eventById(result.lastInsertRowid) });
@@ -307,14 +322,14 @@ export function createApp(db) {
         e.id,
       );
     } else {
-      const values = eventInput(req.body);
+      const values = eventInput(req.body, e);
       if (Number(req.body.capacity) < e.occupied)
         throw fail(
           409,
           "Количество мест не может быть меньше числа принятых участников.",
         );
       db.prepare(
-        "UPDATE events SET title=?,description=?,category=?,location=?,starts_at=?,deadline=?,hours=?,capacity=?,image=?,requirements=? WHERE id=?",
+        "UPDATE events SET title=?,description=?,category=?,location=?,starts_at=?,deadline=?,hours=?,capacity=?,image=?,requirements=?,city=? WHERE id=?",
       ).run(...values, e.id);
     }
     res.json({ event: eventById(e.id) });

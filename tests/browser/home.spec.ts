@@ -14,7 +14,7 @@ async function finishRegistration(
     .getByLabel("Email", { exact: true })
     .fill(`home-${role}-${Date.now()}@example.com`);
   await page.getByLabel("Пароль", { exact: true }).fill("HomeJourney123!");
-  await page.getByRole("checkbox").check();
+  await page.getByRole("dialog").getByRole("checkbox").check();
   await page
     .getByRole("button", { name: "Создать аккаунт", exact: true })
     .click();

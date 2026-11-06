@@ -30,6 +30,8 @@ test("all interface translation calls and server validation messages exist in th
     "src/lib/events.ts",
     "src/lib/i18n.ts",
     "src/components/LanguageSwitcher.tsx",
+    "src/components/Catalog.tsx",
+    "src/lib/categories.ts",
     "shared/translate.ts",
     "server/app.js",
   ]) {

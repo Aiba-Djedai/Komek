@@ -6,8 +6,8 @@ test("catalog filtering, search, favorites and completed events", async ({
   await page.goto("/");
   await expect(page.locator(".event-card")).toHaveCount(6);
   await page
-    .getByRole("button", { name: "Помощь животным", exact: true })
-    .click();
+    .getByRole("checkbox", { name: "Помощь животным", exact: true })
+    .check();
   await expect(page.locator(".event-card")).toHaveCount(1);
   await page.getByRole("button", { name: "В избранное", exact: true }).click();
   await page.reload();
@@ -60,7 +60,7 @@ test("complete journey: organization publishes, volunteer applies, organizer dec
       .fill(name);
     await page.getByLabel("Email", { exact: true }).fill(email);
     await page.getByLabel("Пароль", { exact: true }).fill("JourneyPass123!");
-    await page.getByRole("checkbox").check();
+    await page.getByRole("dialog").getByRole("checkbox").check();
     await page
       .getByRole("button", { name: "Создать аккаунт", exact: true })
       .click();
@@ -103,7 +103,7 @@ test("complete journey: organization publishes, volunteer applies, organizer dec
   await vp.getByRole("button", { name: "Подробнее", exact: true }).click();
   await vp.getByRole("button", { name: "Хочу помочь", exact: true }).click();
   await vp.getByLabel("Университет / место работы").fill("КазНУ");
-  await vp.getByRole("checkbox").check();
+  await vp.getByRole("dialog").getByRole("checkbox").check();
   await vp
     .getByRole("button", { name: "Отправить заявку", exact: true })
     .click();
