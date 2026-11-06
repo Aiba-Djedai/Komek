@@ -48,7 +48,7 @@ import "./components/LanguageSwitcher.css";
 import { Catalog } from "./components/Catalog";
 import { defaultCatalogFilters } from "./lib/catalog";
 import { getCategories } from "./lib/categories";
-import { categoryDefinitions, suggestedCities } from "../shared/catalog.ts";
+import { categoryDefinitions, suggestedPlaces } from "../shared/catalog.ts";
 
 type Notice = {
   id: number;
@@ -2312,7 +2312,7 @@ function EventForm({
           </select>
         </div>
         <div className="field">
-          <label htmlFor={cityInputId}>{t("Город")}</label>
+          <label htmlFor={cityInputId}>{t("Город или область")}</label>
           <input
             id={cityInputId}
             name="city"
@@ -2321,10 +2321,10 @@ function EventForm({
             required
             minLength={2}
             maxLength={100}
-            placeholder={t("Выберите или введите город")}
+            placeholder={t("Выберите или введите город или область")}
           />
           <datalist id={citiesId}>
-            {suggestedCities.map((city) => (
+            {suggestedPlaces.map((city) => (
               <option value={t(city)} key={city}>
                 {t(city)}
               </option>

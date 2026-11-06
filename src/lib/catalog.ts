@@ -1,5 +1,5 @@
 import type { Event } from "../types";
-import { citySearchText } from "../../shared/catalog.ts";
+import { citySearchText, matchesPlace } from "../../shared/catalog.ts";
 
 export type CatalogFilters = {
   categories: string[];
@@ -38,7 +38,7 @@ export function filterCatalog(
         (!filters.city ||
           (filters.city === unspecifiedCity
             ? !event.city
-            : event.city === filters.city)) &&
+            : matchesPlace(event.city, filters.city))) &&
         (!query ||
           `${event.title} ${event.description} ${event.location} ${citySearchText(event.city || "")} ${event.organization}`
             .toLocaleLowerCase()

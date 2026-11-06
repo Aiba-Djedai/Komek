@@ -55,7 +55,9 @@ test("catalog combines several directions, city, nearest order, saved projects a
     "Помощь в клинике",
     "Донорский день",
   ]);
-  await page.getByLabel("Город", { exact: true }).selectOption("Астана");
+  await page
+    .getByLabel("Город или область", { exact: true })
+    .selectOption("Астана");
   await expect(titles).toHaveText(["Спортивный день", "Донорский день"]);
   await page
     .getByRole("checkbox", { name: "Сначала ближайшие", exact: true })
@@ -78,7 +80,9 @@ test("catalog combines several directions, city, nearest order, saved projects a
   await expect(
     page.getByRole("checkbox", { name: "Сначала ближайшие", exact: true }),
   ).toBeChecked();
-  await page.getByLabel("Город", { exact: true }).selectOption("__unspecified");
+  await page
+    .getByLabel("Город или область", { exact: true })
+    .selectOption("__unspecified");
   await expect(titles).toHaveText(["Проект без города"]);
   await page
     .getByRole("button", { name: "Сбросить фильтры", exact: true })
@@ -147,8 +151,12 @@ test("filters collapse on mobile, retain selections across resizing and translat
       exact: true,
     }),
   ).toBeChecked();
-  await expect(page.getByLabel("City", { exact: true })).toBeVisible();
-  await page.getByLabel("City", { exact: true }).selectOption("Астана");
+  await expect(
+    page.getByLabel("City or region", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("City or region", { exact: true })
+    .selectOption("Астана");
   await expect(page.locator(".event-card h3")).toHaveText([
     "Учения поисковой команды",
   ]);
@@ -202,7 +210,7 @@ test("organization form sends city and new category independently of address and
   await dialog
     .getByLabel("Направление", { exact: true })
     .selectOption("rescue");
-  await dialog.getByLabel("Город", { exact: true }).fill("Астана");
+  await dialog.getByLabel("Город или область", { exact: true }).fill("Астана");
   await dialog
     .getByLabel("Место проведения", { exact: true })
     .fill("Центральная площадь");
@@ -227,9 +235,70 @@ test("organization form sends city and new category independently of address and
     .getByRole("button", { name: "Редактировать", exact: true })
     .click();
   await expect(
-    page.getByRole("dialog").getByLabel("Город", { exact: true }),
+    page.getByRole("dialog").getByLabel("Город или область", { exact: true }),
   ).toHaveValue("Астана");
   await expect(
     page.getByRole("dialog").getByLabel("Направление", { exact: true }),
   ).toHaveValue("rescue");
+});
+
+test("all requested cities and regions remain available without projects, in every language", async ({
+  page,
+}) => {
+  await page.route("**/api/events", (route) =>
+    route.fulfill({ json: { events: [] } }),
+  );
+  await page.goto("/projects");
+  const select = page.locator(".catalog-filter-fields > select");
+  const places = [
+    "Алматы",
+    "Астана",
+    "Шымкент",
+    "Абайская область",
+    "Акмолинская область",
+    "Актюбинская область",
+    "Алматинская область",
+    "Атырауская область",
+    "Восточно-Казахстанская область",
+    "Жамбылская область",
+    "Западно-Казахстанская область",
+    "Жетысуская область",
+    "Карагандинская область",
+    "Костанайская область",
+    "Кызылординская область",
+    "Мангистауская область",
+    "Павлодарская область",
+    "Северо-Казахстанская область",
+    "Туркестанская область",
+    "Улытауская область",
+  ];
+  await expect(select.locator("option")).toHaveText([
+    "Все города и области",
+    ...places,
+  ]);
+  await select.selectOption("Абайская область");
+  await expect(
+    page.getByRole("heading", { name: "Пока ничего не нашлось" }),
+  ).toBeVisible();
+  await expect(select.locator("option")).toHaveCount(21);
+  for (const [language, label] of [
+    ["kk", "Абай облысы"],
+    ["en", "Abai Region"],
+  ]) {
+    await page.locator("header .language-trigger").click();
+    await page
+      .locator(`header .language-options button[lang="${language}"]`)
+      .click();
+    await expect(select).toHaveValue("Абайская область");
+    await expect(select.locator("option:checked")).toHaveText(label);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".catalog-filters summary").click();
+  await select.selectOption("Улытауская область");
+  await expect(select.locator("option:checked")).toHaveText("Ulytau Region");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

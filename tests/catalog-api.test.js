@@ -101,3 +101,19 @@ test("city validation rejects bad values and old clients can still infer or reta
     400,
   );
 });
+
+test("organizations can save region names in Kazakh and English using the existing location field", async () => {
+  const created = await request("/events", {
+    ...payload("medical"),
+    city: "Абай облысы",
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.event.city, "Абайская область");
+  const edited = await request(
+    "/events/" + created.body.event.id,
+    { ...payload("medical"), city: "Ulytau Region" },
+    "PATCH",
+  );
+  assert.equal(edited.status, 200);
+  assert.equal(edited.body.event.city, "Улытауская область");
+});

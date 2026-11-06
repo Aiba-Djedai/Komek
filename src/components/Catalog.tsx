@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import { catalogPlaces } from "../../shared/catalog.ts";
 import type { Event } from "../types";
 import { getCategories } from "../lib/categories";
 import { date, eventIsOpen as open, eventIsPast as past } from "../lib/events";
@@ -56,8 +57,11 @@ export function Catalog({
   }, []);
   const filtered = filterCatalog(events, filters, favoritesOnly ? saved : null);
   const cities = [
-    ...new Set(events.map((event) => event.city).filter(Boolean)),
-  ].sort((a, b) => t(a).localeCompare(t(b)));
+    ...new Set([
+      ...catalogPlaces,
+      ...events.map((event) => event.city).filter(Boolean),
+    ]),
+  ];
   // Keep an active city selectable if a refresh temporarily returns no events there.
   if (
     filters.city &&
@@ -110,14 +114,14 @@ export function Catalog({
           </summary>
           <div className="catalog-filter-fields">
             <label className="catalog-city" htmlFor={cityId}>
-              {t("Город")}
+              {t("Город или область")}
             </label>
             <select
               id={cityId}
               value={filters.city}
               onChange={(event) => update({ city: event.target.value })}
             >
-              <option value="">{t("Все города")}</option>
+              <option value="">{t("Все города и области")}</option>
               {cities.map((city) => (
                 <option value={city} key={city}>
                   {t(city)}

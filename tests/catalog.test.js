@@ -8,6 +8,8 @@ import {
   categoryDefinitions,
   inferCity,
   normalizeCity,
+  catalogPlaces,
+  matchesPlace,
 } from "../shared/catalog.ts";
 import { messages } from "../shared/messages.ts";
 import {
@@ -84,6 +86,42 @@ test("nearest order uses event dates and completed events show most recent first
   assert.deepEqual(
     events.map((e) => e.id),
     [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  );
+});
+
+test("permanent location list is translated and regional filters keep republican cities separate", () => {
+  assert.equal(catalogPlaces.length, 20);
+  assert.deepEqual(catalogPlaces.slice(0, 4), [
+    "Алматы",
+    "Астана",
+    "Шымкент",
+    "Абайская область",
+  ]);
+  for (const place of catalogPlaces) assert.ok(messages[place], place);
+  assert.equal(normalizeCity("  Ұлытау облысы "), "Улытауская область");
+  assert.equal(
+    normalizeCity("East Kazakhstan Region"),
+    "Восточно-Казахстанская область",
+  );
+  assert.equal(matchesPlace("Семей", "Абайская область"), true);
+  assert.equal(matchesPlace("Абайская область", "Абайская область"), true);
+  assert.equal(matchesPlace("Конаев", "Алматинская область"), true);
+  assert.equal(matchesPlace("Алматы", "Алматинская область"), false);
+  assert.equal(matchesPlace("Астана", "Акмолинская область"), false);
+  assert.equal(matchesPlace("Шымкент", "Туркестанская область"), false);
+  const projects = [
+    event(10, "eco", "Семей", 5),
+    event(11, "eco", "Абайская область", 6),
+    event(12, "eco", "Алматы", 7),
+  ];
+  assert.deepEqual(
+    filterCatalog(
+      projects,
+      { ...defaultCatalogFilters, city: "Абайская область" },
+      null,
+      now,
+    ).map((e) => e.id),
+    [10, 11],
   );
 });
 
