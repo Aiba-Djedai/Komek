@@ -110,6 +110,14 @@ test("complete journey: organization publishes, volunteer applies, organizer dec
   await expect(vp.getByRole("dialog")).toHaveCount(0);
   await vp.getByRole("button", { name: "Мой кабинет" }).click();
   await expect(vp.getByText("На рассмотрении", { exact: true })).toBeVisible();
+  await vp
+    .getByRole("navigation")
+    .getByRole("button", { name: "Мои проекты", exact: true })
+    .click();
+  await expect(vp.locator(".participation-card")).toContainText(title);
+  await expect(vp.locator(".participation-card .status")).toHaveText(
+    "Заявка на рассмотрении",
+  );
   await op.reload();
   await op.getByRole("button", { name: /Заявки участников/ }).click();
   await op.getByRole("button", { name: "Принять", exact: true }).click();
@@ -127,6 +135,10 @@ test("complete journey: organization publishes, volunteer applies, organizer dec
   await expect(
     vp.getByText("Участие подтверждено", { exact: true }),
   ).toBeVisible();
+  await vp.reload();
+  await expect(vp.locator(".participation-card .status")).toHaveText(
+    "Участие подтверждено",
+  );
   await op.reload();
   await op
     .getByRole("button", { name: "Подтверждённый состав", exact: true })

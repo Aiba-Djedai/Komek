@@ -45,6 +45,8 @@ import {
   eventIsPast as past,
 } from "./lib/events";
 import { OrganizationHome, VolunteerHome } from "./components/Home";
+import { MyProjects } from "./components/MyProjects";
+import { groupParticipations } from "./lib/participation";
 
 type Notice = {
   id: number;
@@ -309,6 +311,18 @@ function App() {
                 ? "Главная организации"
                 : "Найти проект"}
             </button>
+            {user?.role === "volunteer" && (
+              <button
+                className={route === "/my-projects" ? "active" : ""}
+                aria-current={route === "/my-projects" ? "page" : undefined}
+                onClick={() => {
+                  navigate("/my-projects");
+                  setMobileNav(false);
+                }}
+              >
+                Мои проекты
+              </button>
+            )}
             <button
               className={
                 route ===
@@ -995,6 +1009,48 @@ function App() {
             />
           </main>
         )
+      ) : route === "/my-projects" ? (
+        user?.role === "volunteer" ? (
+          <MyProjects
+            applications={applications.filter((a) => a.user_id === user.id)}
+            loading={privateLoading}
+            onView={(id) => navigate("/events/" + id)}
+            onFind={() => navigate("/projects")}
+            onApplications={goDashboard}
+            onConfirm={(a) =>
+              action(
+                `/applications/${a.id}/confirm`,
+                undefined,
+                "Участие подтверждено! Вы добавлены в список команды.",
+              )
+            }
+          />
+        ) : (
+          <main className="container empty-page">
+            <Empty
+              icon={UserRound}
+              title={
+                user
+                  ? "Страница для волонтёров"
+                  : "Войдите, чтобы увидеть свои проекты"
+              }
+              text={
+                user
+                  ? "Созданные вашей организацией события доступны в личном кабинете."
+                  : "Здесь будут ваши предстоящие события и история участия."
+              }
+              action={
+                user
+                  ? goDashboard
+                  : () => {
+                      setAuthRole("volunteer");
+                      setAuth("login");
+                    }
+              }
+              button={user ? "Мой кабинет" : "Войти"}
+            />
+          </main>
+        )
       ) : route === "/dashboard" ? (
         <main className="container dashboard">
           {user ? (
@@ -1077,13 +1133,10 @@ function App() {
                       ],
                       [
                         "Часы завершённых проектов",
-                        applications
-                          .filter(
-                            (a) =>
-                              a.status === "confirmed" &&
-                              Date.parse(a.starts_at) < Date.now(),
-                          )
-                          .reduce((s, a) => s + (a.hours || 0), 0),
+                        groupParticipations(applications).completed.reduce(
+                          (s, a) => s + (a.hours || 0),
+                          0,
+                        ),
                         Clock3,
                       ],
                     ]
@@ -1336,6 +1389,9 @@ function App() {
                 <>
                   <div className="dashboard-tabs">
                     <button className="selected">Мои заявки</button>
+                    <button onClick={() => navigate("/my-projects")}>
+                      Мои проекты
+                    </button>
                     <button
                       onClick={() => {
                         setFavoritesOnly(true);

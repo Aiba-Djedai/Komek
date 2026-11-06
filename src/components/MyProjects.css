@@ -1,0 +1,226 @@
+.my-projects {
+  padding-top: 52px;
+  padding-bottom: 72px;
+  min-height: 65vh;
+}
+.my-projects-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+.my-projects-heading h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  letter-spacing: -1.5px;
+  margin: 12px 0;
+}
+.my-projects-heading p,
+.my-projects-explanation,
+.my-projects-applications p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #5b675f;
+}
+.my-projects-heading > .button {
+  flex-shrink: 0;
+}
+.my-projects-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.my-projects-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 16px;
+  background: white;
+}
+.my-projects-tabs > button[aria-pressed="true"] {
+  color: white;
+  background: var(--green);
+  border-color: var(--green);
+}
+.my-projects-tabs > button > span {
+  opacity: 0.85;
+}
+.my-projects-explanation {
+  max-width: 820px;
+  margin: 20px 0 28px;
+}
+.my-projects-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  font-size: 17px;
+}
+.my-projects-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.participation-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: white;
+}
+.participation-card > img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+.participation-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px;
+}
+.participation-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.participation-badges .status {
+  font-size: 14px;
+}
+.participation-badges .pending {
+  color: #745711;
+}
+.participation-badges .accepted {
+  color: #285774;
+}
+.participation-badges .confirmed {
+  color: #3f602e;
+}
+.participation-live {
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 600;
+}
+.participation-card h2 {
+  margin: 18px 0;
+  font-size: 23px;
+  line-height: 1.35;
+}
+.participation-card h2 button {
+  text-align: left;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.participation-card h2 button:hover {
+  text-decoration: underline;
+}
+.participation-facts {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+}
+.participation-facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 16px;
+  color: #5b675f;
+  line-height: 1.5;
+}
+.participation-facts svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.participation-facts span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.participation-note {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #5b675f;
+  margin: 0 0 20px;
+}
+.participation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  margin-top: auto;
+}
+.participation-actions .button {
+  font-size: 15px;
+  min-height: 44px;
+}
+.participation-actions .text-button {
+  font-size: 16px;
+  min-height: 44px;
+}
+.my-projects-applications {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+  margin-top: 36px;
+  padding-top: 24px;
+}
+.my-projects-applications .text-button {
+  flex-shrink: 0;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+@media (min-width: 721px) and (max-width: 1050px) {
+  .signed-in-header .nav {
+    gap: 18px;
+  }
+  .signed-in-header .nav-links {
+    gap: 14px;
+  }
+  .signed-in-header .nav-links button {
+    font-size: 11px;
+  }
+}
+@media (max-width: 720px) {
+  .my-projects {
+    padding-top: 32px;
+    padding-bottom: 44px;
+  }
+  .my-projects-heading,
+  .my-projects-applications {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .my-projects-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .my-projects-tabs {
+    gap: 8px;
+  }
+  .my-projects-tabs > button {
+    flex: 1;
+    gap: 6px;
+    font-size: 15px;
+    padding: 12px 10px;
+  }
+  .my-projects-tabs > button > svg {
+    display: none;
+  }
+  .participation-card-body {
+    padding: 20px;
+  }
+  .participation-card h2 {
+    font-size: 22px;
+  }
+}
