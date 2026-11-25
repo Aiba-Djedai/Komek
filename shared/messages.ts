@@ -1164,6 +1164,10 @@ export const messages: Record<string, readonly [string, string]> = {
   Имя: ["Аты-жөні", "Name"],
   Университет: ["Университет", "University"],
   "Маршрут не найден.": ["Маршрут табылмады.", "Route not found."],
+  "Завершите регистрацию, используя тот же email.": [
+    "Тіркелуді сол электрондық поштамен аяқтаңыз.",
+    "Finish signing up with the same email address.",
+  ],
   "Не удалось выполнить запрос. Попробуйте ещё раз.": [
     "Сұрауды орындау мүмкін болмады. Қайталап көріңіз.",
     "Could not complete the request. Please try again.",

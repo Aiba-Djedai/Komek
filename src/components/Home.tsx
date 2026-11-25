@@ -17,7 +17,7 @@ import {
   Send,
   Users,
 } from "lucide-react";
-import type { User, Event, Application } from "../types";
+import type { User, Event, Application, RecordId } from "../types";
 import { eventIsOpen, eventIsPast, stamp } from "../lib/events";
 
 type ManageTab = "events" | "applications" | "roster";
@@ -27,7 +27,7 @@ type OrganizationHomeProps = {
   applications: Application[];
   loading: boolean;
   onCreate: () => void;
-  onManage: (tab: ManageTab, eventId?: number) => void;
+  onManage: (tab: ManageTab, eventId?: RecordId) => void;
   onEdit: (event: Event) => void;
   onView: (event: Event) => void;
   onCatalog: () => void;

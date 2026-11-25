@@ -9,7 +9,7 @@ import {
   LoaderCircle,
   MapPin,
 } from "lucide-react";
-import type { Application } from "../types";
+import type { Application, RecordId } from "../types";
 import { date, time } from "../lib/events";
 import { groupParticipations, participationEnd } from "../lib/participation";
 import "./MyProjects.css";
@@ -35,7 +35,7 @@ export function MyProjects({
 }: {
   applications: Application[];
   loading: boolean;
-  onView: (eventId: number) => void;
+  onView: (eventId: RecordId) => void;
   onFind: () => void;
   onApplications: () => void;
   onConfirm: (a: Application) => Promise<void>;

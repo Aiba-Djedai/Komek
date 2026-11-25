@@ -150,7 +150,9 @@ test("complete journey: organization publishes, volunteer applies, organizer dec
     .getByLabel("Событие", { exact: true })
     .selectOption({ label: title });
   const download = op.waitForEvent("download");
-  await op.getByRole("link", { name: "Скачать CSV" }).click();
+  await op
+    .getByRole(process.env.KOMEK_E2E_FIREBASE === "true" ? "button" : "link", { name: "Скачать CSV" })
+    .click();
   expect((await download).suggestedFilename()).toMatch(/komek-roster/);
   await org.close();
   await vol.close();

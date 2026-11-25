@@ -1,7 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  optimizeDeps:
+    mode === "firebase"
+      ? {
+          include: ["firebase/app", "firebase/auth", "firebase/firestore/lite"],
+        }
+      : undefined,
   server: {
     host: "0.0.0.0",
     port: 5173,
@@ -13,4 +19,4 @@ export default defineConfig({
     },
   },
   preview: { host: "0.0.0.0" },
-});
+}));

@@ -33,7 +33,7 @@ import {
   Mountain,
 } from "lucide-react";
 import "./styles.css";
-import type { User, Event, Application } from "./types";
+import type { User, Event, Application, RecordId } from "./types";
 import {
   date,
   time,
@@ -51,12 +51,13 @@ import { getCategories } from "./lib/categories";
 import { categoryDefinitions, suggestedPlaces } from "../shared/catalog.ts";
 
 type Notice = {
-  id: number;
+  id: RecordId;
   message: string;
   created_at: string;
   read_at: string | null;
   source_message?: string;
 };
+const usesFirebase = import.meta.env.MODE === "firebase";
 const getStatuses = (): Record<string, string> => ({
   pending: t("На рассмотрении"),
   accepted: t("Ожидает подтверждения"),
@@ -68,6 +69,10 @@ async function api<T = Record<string, unknown>>(
   method = "GET",
   body?: unknown,
 ): Promise<T> {
+  if (usesFirebase) {
+    const { firebaseRequest } = await import("./lib/firebase");
+    return (await firebaseRequest(path, method, body)) as T;
+  }
   let r: Response;
   let data;
   try {
@@ -132,9 +137,10 @@ function App() {
   const [selectedEvent, setSelectedEvent] = useState("all");
   const [applicationStatus, setApplicationStatus] = useState("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [saved, setSaved] = useState<number[]>(() => {
+  const [saved, setSaved] = useState<RecordId[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem("komek-saved") || "[]");
+      const stored = JSON.parse(localStorage.getItem("komek-saved") || "[]") as RecordId[];
+      return usesFirebase ? stored.map(String) : stored;
     } catch {
       return [];
     }
@@ -154,8 +160,12 @@ function App() {
     setNotices(n.notifications);
   }
   useEffect(() => {
-    Promise.all([api<{ user: User | null }>("/auth/me"), reload()])
-      .then(([d]) => setUser(d.user))
+    Promise.all([
+      api<{ user: User | null }>("/auth/me").then(({ user }) =>
+        setUser((current) => current ?? user),
+      ),
+      reload(),
+    ])
       .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -192,7 +202,7 @@ function App() {
       return () => clearTimeout(id);
     }
   }, [toast]);
-  const toggleSaved = (id: number) => {
+  const toggleSaved = (id: RecordId) => {
     const next = saved.includes(id)
       ? saved.filter((x) => x !== id)
       : [...saved, id];
@@ -237,7 +247,7 @@ function App() {
   };
   const manageOrganization = (
     tab: "events" | "applications" | "roster",
-    eventId?: number,
+    eventId?: RecordId,
   ) => {
     setDashTab(tab);
     setSelectedEvent(eventId ? String(eventId) : "all");
@@ -263,7 +273,7 @@ function App() {
   const ownedEvents = events.filter((e) => e.organization_id === user?.id);
   const unread = notices.filter((n) => !n.read_at).length;
   const currentEvent = route.startsWith("/events/")
-    ? events.find((e) => e.id === Number(route.split("/")[2]))
+    ? events.find((e) => String(e.id) === route.split("/")[2])
     : null;
   const ownApplication = (e: Event) =>
     applications.find((a) => a.event_id === e.id && a.user_id === user?.id);
@@ -1228,12 +1238,29 @@ function App() {
                           </label>
                         )}
                         {dashTab === "roster" && selectedEvent !== "all" && (
-                          <a
-                            className="button dark"
-                            href={`/api/events/${selectedEvent}/roster?format=csv&lang=${language}`}
-                          >
-                            <Download size={17} /> {t(" Скачать CSV")}
-                          </a>
+                          usesFirebase ? (
+                            <button
+                              type="button"
+                              className="button dark"
+                              onClick={async () => {
+                                try {
+                                  const { downloadRoster } = await import("./lib/firebase");
+                                  await downloadRoster(selectedEvent, language);
+                                } catch (error) {
+                                  notify((error as Error).message);
+                                }
+                              }}
+                            >
+                              <Download size={17} /> {t(" Скачать CSV")}
+                            </button>
+                          ) : (
+                            <a
+                              className="button dark"
+                              href={`/api/events/${selectedEvent}/roster?format=csv&lang=${language}`}
+                            >
+                              <Download size={17} /> {t(" Скачать CSV")}
+                            </a>
+                          )
                         )}
                       </div>
                       {dashTab === "roster" ? (
@@ -2130,53 +2157,55 @@ function AuthForm({
           {mode === "login" ? t("Зарегистрироваться") : t("Войти")}
         </button>
       </p>
-      <div className="demo-box">
-        <span>{t("ПОСМОТРЕТЬ, КАК ВСЁ УСТРОЕНО")}</span>
-        <p>{t("Демо-аккаунты с примерами событий и заявок.")}</p>
-        <div>
-          <button
-            disabled={demoBusy}
-            onClick={async () => {
-              setDemoBusy(true);
-              try {
-                const r = await api<{ user: User }>("/auth/login", "POST", {
-                  email: "volunteer@komek.kz",
-                  password: "Komek2026!",
-                });
-                onSuccess(r.user);
-              } catch (e) {
-                setDemoError((e as Error).message);
-              } finally {
-                setDemoBusy(false);
-              }
-            }}
-          >
-            <UserRound size={15} /> {t(" Волонтёр ")}
-            <ArrowUpRight size={14} />
-          </button>
-          <button
-            disabled={demoBusy}
-            onClick={async () => {
-              setDemoBusy(true);
-              try {
-                const r = await api<{ user: User }>("/auth/login", "POST", {
-                  email: "org@komek.kz",
-                  password: "Komek2026!",
-                });
-                onSuccess(r.user);
-              } catch (e) {
-                setDemoError((e as Error).message);
-              } finally {
-                setDemoBusy(false);
-              }
-            }}
-          >
-            <Building2 size={15} /> {t(" Организация ")}
-            <ArrowUpRight size={14} />
-          </button>
+      {!usesFirebase && (
+        <div className="demo-box">
+          <span>{t("ПОСМОТРЕТЬ, КАК ВСЁ УСТРОЕНО")}</span>
+          <p>{t("Демо-аккаунты с примерами событий и заявок.")}</p>
+          <div>
+            <button
+              disabled={demoBusy}
+              onClick={async () => {
+                setDemoBusy(true);
+                try {
+                  const r = await api<{ user: User }>("/auth/login", "POST", {
+                    email: "volunteer@komek.kz",
+                    password: "Komek2026!",
+                  });
+                  onSuccess(r.user);
+                } catch (e) {
+                  setDemoError((e as Error).message);
+                } finally {
+                  setDemoBusy(false);
+                }
+              }}
+            >
+              <UserRound size={15} /> {t(" Волонтёр ")}
+              <ArrowUpRight size={14} />
+            </button>
+            <button
+              disabled={demoBusy}
+              onClick={async () => {
+                setDemoBusy(true);
+                try {
+                  const r = await api<{ user: User }>("/auth/login", "POST", {
+                    email: "org@komek.kz",
+                    password: "Komek2026!",
+                  });
+                  onSuccess(r.user);
+                } catch (e) {
+                  setDemoError((e as Error).message);
+                } finally {
+                  setDemoBusy(false);
+                }
+              }}
+            >
+              <Building2 size={15} /> {t(" Организация ")}
+              <ArrowUpRight size={14} />
+            </button>
+          </div>
+          {demoError && <p className="form-error">{t(demoError)}</p>}
         </div>
-        {demoError && <p className="form-error">{t(demoError)}</p>}
-      </div>
+      )}
     </>
   );
 }

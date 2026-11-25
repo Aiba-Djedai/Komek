@@ -1,4 +1,4 @@
-import type { Event } from "../types";
+import type { Event, RecordId } from "../types";
 import { citySearchText, matchesPlace } from "../../shared/catalog.ts";
 
 export type CatalogFilters = {
@@ -20,10 +20,13 @@ export const unspecifiedCity = "__unspecified";
 export function filterCatalog(
   events: Event[],
   filters: CatalogFilters,
-  favorites: number[] | null = null,
+  favorites: RecordId[] | null = null,
   now = Date.now(),
 ) {
   const query = filters.search.trim().toLocaleLowerCase();
+  const newerFirst = (a: Event, b: Event) =>
+    (Date.parse(b.created_at || "") - Date.parse(a.created_at || "")) ||
+    String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
   return events
     .filter((event) => {
       const past = Date.parse(event.starts_at) <= now;
@@ -54,7 +57,7 @@ export function filterCatalog(
     .sort((a, b) =>
       filters.nearest
         ? (filters.period === "past" ? -1 : 1) *
-            (Date.parse(a.starts_at) - Date.parse(b.starts_at)) || b.id - a.id
-        : b.id - a.id,
+            (Date.parse(a.starts_at) - Date.parse(b.starts_at)) || newerFirst(a, b)
+        : newerFirst(a, b),
     );
 }

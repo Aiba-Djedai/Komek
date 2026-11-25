@@ -1,0 +1,185 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function self(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function profile(uid) {
+      return /databases/$(database)/documents/profiles/$(uid);
+    }
+
+    function organization(uid) {
+      return /databases/$(database)/documents/organizations/$(uid);
+    }
+
+    function eventPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId);
+    }
+
+    function activity(eventId) {
+      return /databases/$(database)/documents/eventActivity/$(eventId);
+    }
+
+    function applicant(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/applicants/$(uid);
+    }
+
+    function hasRole(role) {
+      return signedIn() && get(profile(request.auth.uid)).data.role == role;
+    }
+
+    function bounded(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+
+    function changedOnly(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    match /profiles/{uid} {
+      function validProfile(data) {
+        return data.keys().hasOnly(['role', 'email', 'name', 'university', 'contact', 'bio', 'consent'])
+          && data.role in ['volunteer', 'organization'] && data.consent == true
+          && data.email == request.auth.token.email
+          && bounded(data.name, 2, 100) && bounded(data.university, 0, 200)
+          && bounded(data.contact, 0, 200) && bounded(data.bio, 0, 1000)
+          && (data.role != 'organization' || getAfter(organization(uid)).data.name == data.name);
+      }
+
+      allow get: if self(uid);
+      allow create: if self(uid) && validProfile(request.resource.data);
+      allow update: if self(uid) && changedOnly(['name', 'university', 'contact', 'bio'])
+        && validProfile(request.resource.data);
+    }
+
+    match /organizations/{uid} {
+      allow get: if true;
+      allow create, update: if self(uid)
+        && request.resource.data.keys().hasOnly(['name'])
+        && getAfter(profile(uid)).data.role == 'organization'
+        && getAfter(profile(uid)).data.name == request.resource.data.name;
+    }
+
+    match /events/{eventId} {
+      function editableFields() {
+        return ['title', 'description', 'category', 'city', 'location', 'starts_at',
+          'deadline', 'hours', 'capacity', 'image', 'requirements'];
+      }
+
+      function validEvent(data) {
+        return bounded(data.title, 4, 150) && bounded(data.description, 20, 10000)
+          && data.category in ['eco', 'social', 'animals', 'education', 'events', 'sports',
+            'medical', 'rescue']
+          && bounded(data.city, 2, 100) && bounded(data.location, 3, 300)
+          && data.starts_at is timestamp && data.starts_at > request.time
+          && data.deadline is timestamp && data.deadline < data.starts_at
+          && data.hours is number && data.hours > 0 && data.hours <= 168
+          && data.capacity is int && data.capacity >= 1 && data.capacity <= 10000
+          && data.capacity >= data.occupied
+          && bounded(data.image, 1, 2000)
+          && (data.image.matches('https://.+') || data.image.matches('/images/[a-z]+[.](jpg|png)'))
+          && bounded(data.requirements, 0, 2000);
+      }
+
+      function countsNewApplication(uid) {
+        return self(uid) && hasRole('volunteer')
+          && changedOnly(['application_count'])
+          && request.resource.data.application_count == resource.data.application_count + 1
+          && !exists(applicant(eventId, uid))
+          && getAfter(applicant(eventId, uid)).data.user_id == uid;
+      }
+
+      function countsAcceptedApplication(uid) {
+        return self(resource.data.organization_id) && hasRole('organization')
+          && changedOnly(['occupied']) && request.resource.data.occupied == resource.data.occupied + 1
+          && request.resource.data.occupied <= resource.data.capacity
+          && get(applicant(eventId, uid)).data.status == 'pending'
+          && getAfter(applicant(eventId, uid)).data.status == 'accepted';
+      }
+
+      allow read: if true;
+      allow create: if hasRole('organization')
+        && request.resource.data.keys().hasOnly(editableFields().concat([
+          'organization_id', 'closed', 'created_at', 'application_count', 'occupied'
+        ]))
+        && request.resource.data.organization_id == request.auth.uid
+        && request.resource.data.created_at == request.time && request.resource.data.closed == false
+        && request.resource.data.application_count == 0 && request.resource.data.occupied == 0
+        && validEvent(request.resource.data);
+      allow update: if (self(resource.data.organization_id) && hasRole('organization') && (
+          (changedOnly(editableFields()) && validEvent(request.resource.data))
+          || (changedOnly(['closed']) && request.resource.data.closed is bool)
+        ))
+        || countsNewApplication(getAfter(activity(eventId)).data.user_id)
+        || countsAcceptedApplication(getAfter(activity(eventId)).data.user_id);
+
+      match /applicants/{uid} {
+        function validApplication(data, event) {
+          return data.keys().hasOnly(['user_id', 'event_id', 'organization_id', 'full_name',
+            'university', 'contact', 'motivation', 'consent', 'status', 'created_at',
+            'decision_at', 'decision_title', 'confirmed_at', 'notice_sent_at', 'read_at'])
+            && data.user_id == uid && data.event_id == eventId
+            && data.organization_id == event.organization_id && data.consent == true
+            && bounded(data.full_name, 2, 200) && bounded(data.university, 2, 200)
+            && bounded(data.contact, 2, 200) && data.contact.matches('(@[a-zA-Z0-9_]{3,}|[^ @\\t\\r\\n]+@[^ @\\t\\r\\n]+[.][^ @\\t\\r\\n]+)')
+            && bounded(data.motivation, 0, 2000)
+            && data.status == 'pending' && data.created_at == request.time && data.decision_at == null
+            && data.decision_title == null && data.confirmed_at == null
+            && data.notice_sent_at == null && data.read_at == null
+            && event.closed == false && event.deadline > request.time && event.starts_at > request.time
+            && event.occupied < event.capacity
+            && getAfter(eventPath(eventId)).data.application_count == event.application_count + 1
+            && getAfter(activity(eventId)).data.user_id == uid;
+        }
+
+        function decision(data, event) {
+          return changedOnly(['status', 'decision_at', 'decision_title'])
+            && resource.data.status == 'pending' && data.decision_at == request.time
+            && data.decision_title == event.title
+            && (data.status == 'declined' || (data.status == 'accepted'
+              && getAfter(eventPath(eventId)).data.occupied == event.occupied + 1
+              && getAfter(activity(eventId)).data.user_id == uid));
+        }
+
+        allow get: if self(uid) || self(get(eventPath(eventId)).data.organization_id);
+        allow list: if self(get(eventPath(eventId)).data.organization_id);
+        allow create: if self(uid) && hasRole('volunteer')
+          && validApplication(request.resource.data, get(eventPath(eventId)).data);
+        allow update: if (
+          self(resource.data.organization_id) && hasRole('organization') && (
+            decision(request.resource.data, get(eventPath(eventId)).data)
+            || (changedOnly(['notice_sent_at']) && resource.data.status != 'pending'
+              && resource.data.notice_sent_at == null && request.resource.data.notice_sent_at == request.time)
+          )
+        ) || (
+          self(uid) && (
+            (changedOnly(['status', 'confirmed_at']) && resource.data.status == 'accepted'
+              && request.resource.data.status == 'confirmed' && request.resource.data.confirmed_at == request.time
+              && get(eventPath(eventId)).data.starts_at > request.time)
+            || (changedOnly(['read_at']) && resource.data.decision_at is timestamp
+              && resource.data.read_at == null && request.resource.data.read_at == request.time)
+          )
+        );
+      }
+    }
+
+    match /{parent=**}/applicants/{uid} {
+      allow list: if self(resource.data.user_id) || self(resource.data.organization_id);
+    }
+
+    match /eventActivity/{eventId} {
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['user_id'])
+        && request.resource.data.user_id is string
+        && ((self(request.resource.data.user_id)
+            && getAfter(eventPath(eventId)).data.application_count == get(eventPath(eventId)).data.application_count + 1)
+          || (self(get(eventPath(eventId)).data.organization_id)
+            && getAfter(eventPath(eventId)).data.occupied == get(eventPath(eventId)).data.occupied + 1));
+    }
+  }
+}

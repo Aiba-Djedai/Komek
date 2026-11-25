@@ -5,3 +5,8 @@ dist/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+.env.*.local
+firebase-debug.log
+firestore-debug.log
+.firebase/

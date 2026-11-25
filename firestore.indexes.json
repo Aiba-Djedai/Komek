@@ -1,0 +1,15 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "applicants",
+      "fieldPath": "user_id",
+      "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }]
+    },
+    {
+      "collectionGroup": "applicants",
+      "fieldPath": "organization_id",
+      "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }]
+    }
+  ]
+}

@@ -1,5 +1,7 @@
+export type RecordId = number | string;
+
 export type User = {
-  id: number;
+  id: RecordId;
   role: "volunteer" | "organization";
   name: string;
   email: string;
@@ -8,8 +10,8 @@ export type User = {
   bio: string;
 };
 export type Event = {
-  id: number;
-  organization_id: number;
+  id: RecordId;
+  organization_id: RecordId;
   organization: string;
   title: string;
   description: string;
@@ -25,11 +27,12 @@ export type Event = {
   image: string;
   requirements: string;
   closed: number;
+  created_at?: string;
 };
 export type Application = {
-  id: number;
-  event_id: number;
-  user_id: number;
+  id: RecordId;
+  event_id: RecordId;
+  user_id: RecordId;
   full_name: string;
   university: string;
   contact: string;

@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { catalogPlaces } from "../../shared/catalog.ts";
-import type { Event } from "../types";
+import type { Event, RecordId } from "../types";
 import { getCategories } from "../lib/categories";
 import { date, eventIsOpen as open, eventIsPast as past } from "../lib/events";
 import {
@@ -40,8 +40,8 @@ export function Catalog({
   onChange: (filters: CatalogFilters) => void;
   favoritesOnly: boolean;
   onToggleFavorites: () => void;
-  saved: number[];
-  onSave: (id: number) => void;
+  saved: RecordId[];
+  onSave: (id: RecordId) => void;
   onView: (event: Event) => void;
   onReset: () => void;
 }) {
