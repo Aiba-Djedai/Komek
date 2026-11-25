@@ -20,6 +20,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  increment,
   query,
   runTransaction,
   serverTimestamp,
@@ -385,7 +386,7 @@ async function apply(
     });
     transaction.set(doc(db, "eventActivity", eventId), { user_id: uid });
     transaction.update(eventRef, {
-      application_count: event.application_count + 1,
+      application_count: increment(1),
     });
   });
 }
@@ -488,7 +489,7 @@ async function updateApplication(
           "Лимит участников достигнут. Увеличьте число мест или отклоните заявку. Уведомление не отправлено.",
         );
       transaction.set(doc(db, "eventActivity", eventId), { user_id: uid });
-      transaction.update(eventRef, { occupied: event.occupied + 1 });
+      transaction.update(eventRef, { occupied: increment(1) });
     }
     transaction.update(appRef, {
       status,
